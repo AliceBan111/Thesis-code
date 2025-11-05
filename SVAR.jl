@@ -253,4 +253,3 @@ end
 # Run the analysis
 A, Σ, IRF, Y = main()
 
-
