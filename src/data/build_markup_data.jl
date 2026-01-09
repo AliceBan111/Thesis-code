@@ -1,6 +1,6 @@
 # src/data/build_markup_data.jl
 
-using DataFrames, XLSX, Dates
+using DataFrames, XLSX, Dates, Interpolations, ReadStatTables
 
 """
     build_markup_method1(df::DataFrame)
