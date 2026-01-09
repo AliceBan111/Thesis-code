@@ -79,6 +79,10 @@ function run_wage_heterogeneity_analysis(markup_shocks, shock_dates; output_suff
     df_blue[!, :dlog_wage]  = [missing; diff(log.(df_blue.avg_wage))]
 
     # 5. Merge with Shocks
+    unique!(df_white, :quarter)
+    unique!(df_blue, :quarter)
+    unique!(shock_df, :quarter)
+
     df_plot = innerjoin(
         innerjoin(df_white[:, [:quarter, :dlog_wage]], df_blue[:, [:quarter, :dlog_wage]], on=:quarter, makeunique=true),
         shock_df[:, [:quarter, :markup_shock]], on=:quarter
