@@ -18,7 +18,8 @@ function build_markup_method2(df::DataFrame)
     agg_markup = combine(
         groupby(dropmissing(markup_data, :hp_l_MWint87), :year),
         :hp_l_MWint87 => mean => :hp_l_MWint87_agg
-    )
+    )  
+    sort!(agg_markup, :year)
 
     years = agg_markup.year
     values = agg_markup.hp_l_MWint87_agg
@@ -28,9 +29,9 @@ function build_markup_method2(df::DataFrame)
     quarterly_indices = range(1, stop=length(values), length=length(values)*4)
     interpolated_values = [itp(x) for x in quarterly_indices]
 
-    quarterly_markup = DataFrame(
+    quarterly_markup_pool = DataFrame(
         observation_date = Date[],
-        hp_l_MWint87 = Float64[]
+        markup_level = Float64[]
     )
 
     current_idx = 1
@@ -38,24 +39,20 @@ function build_markup_method2(df::DataFrame)
         y = Int(row.year)
         for m in [1, 4, 7, 10]
             if current_idx <= length(interpolated_values)
-                push!(quarterly_markup, (
+                push!(quarterly_markup_pool, (
                     observation_date = Date(y, m, 1),
-                    hp_l_MWint87 = interpolated_values[current_idx]
+                    markup_level = interpolated_values[current_idx]
                 ))
                 current_idx += 1
             end
         end
     end
 
-    sort!(quarterly_markup, :observation_date)
-
     # 4. join to input DataFrame
-    df = copy(df)
-    df = leftjoin(df, quarterly_markup, on=:observation_date)
+    df_result = leftjoin(df, quarterly_markup_pool, on=:observation_date)
 
     # 5. compute quarterly growth
-    df.markup = df.hp_l_MWint87
-    df.markup_growth = [missing; diff(df.markup)]
+    df_result.markup_growth = [missing; diff(df_result.markup_level)]
 
-    return df
+    return df_result
 end

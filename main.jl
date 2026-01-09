@@ -1,6 +1,7 @@
 cd(@__DIR__)
 
 # Include utility functions
+include("src/ToolBox/load_var.jl")
 include("src/data/build_macro_data.jl")
 include("src/data/build_markup_data_method1.jl")
 include("src/data/build_markup_data_method2.jl")

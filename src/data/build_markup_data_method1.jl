@@ -11,40 +11,51 @@ Adds two columns to df:
 Requires: data/markup.xlsx (Sheet1)
 """
 function build_markup_method1(df::DataFrame)
-    # 1. load data
-    markup_data = DataFrame(
-    XLSX.readtable(
-        joinpath(@__DIR__, "../../data/markup.xlsx"),
-        "Sheet1";
-        infer_eltypes = true
-    )
-)
+    # 1. obtain df time range
+    start_date = minimum(df.observation_date)
+    end_date = maximum(df.observation_date)
 
+    # 2. load data
+    markup_data = DataFrame(XLSX.readtable(
+        joinpath(@__DIR__, "../../data/markup.xlsx"), "Sheet1"; 
+        infer_eltypes = true
+    ))
+    
     labor_row = markup_data[markup_data.Measure .== "Labor compensation", :]
     va_row = markup_data[markup_data.Measure .== "Value-added output", :]
 
-    # 2. find out year column
-    cols = names(markup_data)
-    time_cols = cols[5:end]   
+    # 3. data conversion
+    function parse_q_date(s)
+        parts = split(s, " ")
+        y = parse(Int, parts[1])
+        q = parts[2]
+        m = q == "Q1" ? 1 : q == "Q2" ? 4 : q == "Q3" ? 7 : 10
+        return Date(y, m, 1)
+    end
 
+    # 4. filter columns according to the time range
+    all_cols = names(markup_data)[5:end]
+   
     selected_cols = filter(c -> begin
-            year = parse(Int, split(c, " ")[1])
-            (year ≥ 1964) && (year ≤ 2017)
-        end,
-        time_cols
+            dt = parse_q_date(c)
+            return dt >= (start_date - Month(3)) && dt <= end_date
+        end, all_cols)
+
+    # 5. markup calculation
+    labor = Float64.(collect(Vector(labor_row[1, selected_cols])))
+    value_added = Float64.(collect(Vector(va_row[1, selected_cols])))
+    
+    markup_vec = -log.(labor ./ value_added)
+
+    # 6. construct temp
+    temp_markup_df = DataFrame(
+        observation_date = parse_q_date.(selected_cols),
+        markup = markup_vec,
+        markup_growth = [missing; diff(markup_vec)]
     )
 
-    # 3. markup
-    labor = collect(labor_row[1, selected_cols])
-    value_added = collect(va_row[1, selected_cols])
+    # 7. using leftjoin to align the date
+    res_df = leftjoin(df, temp_markup_df, on = :observation_date)
 
-    markup = -log.(labor ./ value_added)
-    markup_growth = [missing; diff(markup)]
-
-    # 4.add to df
-    df = copy(df)   
-    df.markup = markup
-    df.markup_growth = markup_growth
-
-    return df
+    return res_df
 end
