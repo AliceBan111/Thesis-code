@@ -125,5 +125,5 @@ function estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=1, savep
         println("Variables move in opposite directions")
     end
 
-    return Dict(:VAR => VAR, :VARopt => VARopt, :SRout => SRout)
+    return Dict(:VAR => VAR, :VARopt => VARopt, :SRout => SRout, :p => optimal_lag)
 end
