@@ -1,5 +1,3 @@
-cd(@__DIR__)
-
 # Include utility functions
 include("src/ToolBox/load_var.jl")
 include("src/data/build_macro_data.jl")
@@ -8,6 +6,8 @@ include("src/data/build_markup_data_method2.jl")
 include("src/models/var_sr.jl")
 
 using Dates, Plots
+
+cd(@__DIR__)
 
 # 1. Load macro data
 start_date_method1 = Date("1964-01-01")
@@ -26,7 +26,3 @@ df_method2 = build_markup_method2(macro_df_method2)
 # 3. Estimate VAR + Sign Restrictions
 res_method1 = estimate_VAR_SR(df_method1; method_name="method1")
 res_method2 = estimate_VAR_SR(df_method2; method_name="method2")
-
-# 4. Results
-println("Method 1 results saved in results/method1/")
-println("Method 2 results saved in results/method2/")
