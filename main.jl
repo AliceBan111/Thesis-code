@@ -2,7 +2,8 @@ cd(@__DIR__)
 
 # Include utility functions
 include("src/data/build_macro_data.jl")
-include("src/data/build_markup_data.jl")
+include("src/data/build_markup_data_m1.jl")
+include("src/data/build_markup_data_m2.jl")
 include("src/models/var_sr.jl")
 
 using Dates, Plots
