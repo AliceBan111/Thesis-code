@@ -1,6 +1,7 @@
 # Research Log: Stage 1
 
 **Last Updated:** 2026-01-10
+
 **Status:** Completed baseline SVAR identification and preliminary wage heterogeneity experiments.
 
 ## Repository Structure
