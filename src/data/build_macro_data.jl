@@ -1,3 +1,4 @@
+cd(@__DIR__)
 using CSV, DataFrames, Dates
 
 """
@@ -11,30 +12,36 @@ Returns a DataFrame with:
 - iL: 10-year government bond
 """
 function build_macro_data(start_date::Date, end_date::Date)
-    df = DataFrame(observation_date = Date[])
-
-    # 1. GDP
+    # 1. Create a DataFrame with observation dates
     gdp_data = CSV.read("data/GDPC1.csv", DataFrame)
-    df.observation_date = gdp_data[(gdp_data.observation_date .>= start_date) .& 
-                                   (gdp_data.observation_date .<= end_date), :observation_date]
-    df.ln_gdp = log.(gdp_data[gdp_data.observation_date .∈ Set(df.observation_date), :GDPC1])
+    df = gdp_data[(gdp_data.observation_date .>= start_date) .& 
+                  (gdp_data.observation_date .<= end_date), [:observation_date]]
+
+    # 2. GDP
+    gdp_filtered = gdp_data[(gdp_data.observation_date .>= start_date) .& 
+                            (gdp_data.observation_date .<= end_date), :]
+    df.ln_gdp = log.(gdp_filtered.GDPC1)
     df.ln_gdp_diff = [missing; diff(df.ln_gdp)]
 
-    # 2. Inflation
+    # 3. Inflation
     inflation_data = CSV.read("data/GDPDEF.csv", DataFrame)
-    df.pi_p = [missing; diff(log.(inflation_data[inflation_data.observation_date .∈ Set(df.observation_date), :GDPDEF]))]
+    infl_filtered = inflation_data[(inflation_data.observation_date .>= start_date) .& 
+                                   (inflation_data.observation_date .<= end_date), :]
+    df.pi_p = [missing; diff(log.(infl_filtered.GDPDEF))]
 
-    # 3. Unemployment
+    # 4. Unemployment
     u_data = CSV.read("data/UNRATE.csv", DataFrame)
-    df.u = u_data[(u_data.observation_date .>= start_date) .& 
-                  (u_data.observation_date .<= end_date), :UNRATE]
+    u_filtered = u_data[(u_data.observation_date .>= start_date) .& 
+                        (u_data.observation_date .<= end_date), :]
+    df.u = u_filtered.UNRATE
     df.du = [missing; diff(df.u)]
 
-    # 4. 10-year government bond
+    # 5. 10-year government bond
     iL_data = CSV.read("data/GS10.csv", DataFrame)
-    df.iL = iL_data[(iL_data.observation_date .>= start_date) .&
-                    (iL_data.observation_date .<= end_date), :GS10]
+    iL_filtered = iL_data[(iL_data.observation_date .>= start_date) .&
+                          (iL_data.observation_date .<= end_date), :]
+    df.iL = iL_filtered.GS10
 
-
+    # Remove first row due to diff → missing
     return df[2:end, :]
 end
