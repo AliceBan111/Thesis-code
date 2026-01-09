@@ -12,7 +12,13 @@ Requires: data/markup.xlsx (Sheet1)
 """
 function build_markup_method1(df::DataFrame)
     # 1. load data
-    markup_data = DataFrame(XLSX.readtable("data/markup.xlsx", "Sheet1", infer_eltypes=true))
+    markup_data = DataFrame(
+    XLSX.readtable(
+        joinpath(@__DIR__, "../../data/markup.xlsx"),
+        "Sheet1";
+        infer_eltypes = true
+    )
+)
 
     labor_row = markup_data[markup_data.Measure .== "Labor compensation", :]
     va_row = markup_data[markup_data.Measure .== "Value-added output", :]
