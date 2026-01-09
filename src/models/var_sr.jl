@@ -108,7 +108,11 @@ function estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=4, savep
             xlabel="Horizon",
             ylabel="Response"
         )
+<<<<<<< Updated upstream
         savefig(p, joinpath(folder_path, "IRF_$(replace(variable_names[i], ' ' => '_'))_to_$(replace(variable_names[shock_col], ' ' => '_')).png"))
+=======
+        savefig(p, joinpath(savepath, "IRF_$(replace(variable_names[i], ' ' => '_'))_to_$(replace(variable_names[shock_col], ' ' => '_')).png"))
+>>>>>>> Stashed changes
     end
     display(plt)
 
