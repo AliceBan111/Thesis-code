@@ -17,8 +17,10 @@ Returns a dictionary with:
 - :VARopt => VAR options used for SR
 - :SRout => Sign restriction output
 """
-function estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=4, savepath::String="results/")
-
+function estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=4, savepath::String="results/" , method_name::String="method")
+    folder_path = joinpath(savepath, method_name)
+    mkpath(folder_path)
+    
     # 1. Prepare VAR data
     svar_data = df[:, [:ln_gdp_diff, :pi_p, :u, :markup_growth, :iL]]
     X = convert(Matrix{Float64}, coalesce.(Matrix(svar_data), NaN))
@@ -106,7 +108,7 @@ function estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=4, savep
             xlabel="Horizon",
             ylabel="Response"
         )
-        savefig(p, joinpath(savepath, "IRF_$(replace(variable_names[i], ' ' => '_'))_to_$(replace(variable_names[shock_col], ' ' => '_')).png"))
+        savefig(p, joinpath(folder_path, "IRF_$(replace(variable_names[i], ' ' => '_'))_to_$(replace(variable_names[shock_col], ' ' => '_')).png"))
     end
     display(plt)
 
