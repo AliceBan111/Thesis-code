@@ -38,8 +38,9 @@
     * **Data Integration**: Successfully integrated CPS quarterly micro-data spanning 1987–2012.
     * **Classification**: Implemented a occupational classification system (White-collar vs. Blue-collar) based on Census OCC codes.
 * **Key Insight**: 
-    * Identified a **"predatory" immediate impact** on blue-collar wages (significant negative correlation at Lag 0).
-    * Observed **delayed compensation** patterns in white-collar wages (positive correlation/recovery at later lags).
+    * Blue-collar wages exhibit **high-frequency volatility** with a significant compensatory spike at Lag 3.
+    * white-collar wages show **structural rigidity** with a much smoother, delayed recovery.
+    * Both groups experience an immediate real wage erosion at Lag 0.
 
 > **Note**: For Stage 1 specific occupational definitions and the latest **"Wage Correlation Response"** plots, please switch to the research branch via:
 > `git checkout experiment-wage-heterogeneity`
