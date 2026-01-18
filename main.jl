@@ -52,7 +52,7 @@ df_results, irf_data = run_wage_heterogeneity_analysis(
 )
 
 df_results, irf_data = run_wage_heterogeneity_analysis(
-    markup_shocks_m2_no_hp, 
+    markup_shocks_m2_no_hp_level, 
     shock_dates; 
     output_suffix="method2_no_hp_level"
 )
