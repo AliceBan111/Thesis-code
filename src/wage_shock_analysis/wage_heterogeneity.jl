@@ -78,6 +78,27 @@ function run_wage_heterogeneity_analysis(markup_shocks, shock_dates; output_suff
     df_white[!, :dlog_wage] = [missing; diff(log.(df_white.avg_wage))]
     df_blue[!, :dlog_wage]  = [missing; diff(log.(df_blue.avg_wage))]
 
+    #plot original series
+    save_path = joinpath(pwd(), "results", output_suffix, "wage_heterogeneity")
+    mkpath(save_path)
+
+    df_levels = innerjoin(
+        df_white[:, [:quarter, :avg_wage]], 
+        df_blue[:, [:quarter, :avg_wage]], 
+        on=:quarter, makeunique=true
+    )
+    rename!(df_levels, :avg_wage => :white_level, :avg_wage_1 => :blue_level)
+
+    plt_levels = plot(df_levels.quarter, [df_levels.white_level df_levels.blue_level],
+                      label=["White-collar (Level)" "Blue-collar (Level)"],
+                      color=[:blue :green], lw=2,
+                      title="Raw Weekly Wage Levels ($output_suffix)",
+                      xlabel="Year", ylabel="Weekly Earnings (\$)",
+                      legend=:topleft, size=(1000, 600))
+    
+    savefig(plt_levels, joinpath(save_path, "raw_wage_levels_comparison.png"))
+    display(plt_levels)
+
     # 5. Merge with Shocks
     unique!(df_white, :quarter)
     unique!(df_blue, :quarter)
@@ -91,8 +112,8 @@ function run_wage_heterogeneity_analysis(markup_shocks, shock_dates; output_suff
     df_plot = dropmissing(df_plot)
 
     # 6. Save path
-    save_path = joinpath(pwd(), "results", output_suffix, "wage_heterogeneity")
-    mkpath(save_path)
+    # save_path = joinpath(pwd(), "results", output_suffix, "wage_heterogeneity")
+    # mkpath(save_path)
     
     # 7. Visualization & Correlation
     # Plot 1: Time Series

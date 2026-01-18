@@ -24,14 +24,14 @@ df_method2_no_hp = build_markup_method2_no_hp(macro_df_method2_no_hp)
 
 # 3. Estimate VAR + Sign Restrictions
 res_method2 = estimate_VAR_SR(df_method2; method_name="method2")
-res_method2_no_hp = estimate_VAR_SR(df_method2_no_hp; method_name="method2_no_hp")
+res_method2_no_hp_level = estimate_VAR_SR(df_method2_no_hp; method_name="method2_no_hp", use_growth = false)
 
 # 4. extract shocks
 markup_shocks_m2 = extract_structural_shocks(res_method2, shock_index=1)
 n_shocks = length(markup_shocks_m2)
 
-markup_shocks_m2_no_hp = extract_structural_shocks(res_method2_no_hp, shock_index=1)
-n_shocks = length(markup_shocks_m2_no_hp)
+markup_shocks_m2_no_hp_level = extract_structural_shocks(res_method2_no_hp_level, shock_index=1)
+n_shocks = length(markup_shocks_m2_no_hp_level)
 
 # Get the corresponding dates for the shocks
 shock_dates = last(df_method2.observation_date, n_shocks)
@@ -54,5 +54,5 @@ df_results, irf_data = run_wage_heterogeneity_analysis(
 df_results, irf_data = run_wage_heterogeneity_analysis(
     markup_shocks_m2_no_hp, 
     shock_dates; 
-    output_suffix="method2_no_hp"
+    output_suffix="method2_no_hp_level"
 )
