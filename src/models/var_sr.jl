@@ -51,7 +51,7 @@ function estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=1, savep
     SIGN = [
     -1 0 0 0 0;   # ln_gdp_diff  ↓
     1 0 0 0 0;   # pi_p         ↑
-    1 0 0 0 0;   # u            
+    1 0 0 0 0;   # du        ↑     
     1 0 0 0 0;   # markup_growth↑
     0 0 0 0 0    # iL           unrestricted
 ]
