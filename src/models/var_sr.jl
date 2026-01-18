@@ -74,7 +74,7 @@ function estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=1, savep
     # 5. Plot impulse responses for selected shock
     variable_names = ["GDP Growth (ln_gdp_diff)", 
                     "Price Inflation (pi_p)", 
-                    "Unemployment Rate (u)", 
+                    "Unemployment Rate Growth (du)", 
                     "Markup Growth (markup_growth)", 
                     "Long-term Interest Rate (iL)"]
 
