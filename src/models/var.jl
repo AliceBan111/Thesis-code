@@ -20,14 +20,21 @@ Arguments:
 - savepath  : directory to save the plot
 - tag       : string tag to distinguish specifications (e.g. "method1", "method2")
 """
-function plot_VAR_inputs(df::DataFrame; savepath="results/", tag="method")
+function plot_VAR_inputs(df::DataFrame; savepath="results/", tag="method", use_growth::Bool=true)
+    u_var = use_growth ? :du : :u
+    mu_var = use_growth ? :markup_growth : :markup_level
 
-    vars = [:ln_gdp_diff, :pi_p, :du, :markup_growth, :iL]
+    u_title = use_growth ? "Change in unemployment rate (Δu)" : "Unemployment rate (u)"
+    mu_title = use_growth ? "Markup growth" : "Markup level"
+
+    data_type_suffix = use_growth ? "growth" : "level"
+
+    vars = [:ln_gdp_diff, :pi_p, u_var, mu_var, :iL]
     titles = [
         "GDP growth (Δ log GDP)",
         "Inflation (π)",
-        "Change in unemployment rate (Δu)",
-        "Markup growth",
+        u_title,
+        mu_title,
         "Long-term interest rate"
     ]
 
@@ -60,10 +67,11 @@ function plot_VAR_inputs(df::DataFrame; savepath="results/", tag="method")
     folder_path = joinpath(pwd(), savepath, "var")
     mkpath(folder_path)
 
-    savefile = joinpath(folder_path, "VAR_inputs_$(tag).png")
+    full_tag = "$(tag)_$(data_type_suffix)"
+    savefile = joinpath(folder_path, "VAR_inputs_$(full_tag).png")
     savefig(plt, savefile)
 
-    println("VAR input series plot saved to: ", savefile)
+    println("VAR input series plot ($data_type_suffix) saved to: ", savefile)
     display(plt)
 
     return nothing
