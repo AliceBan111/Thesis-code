@@ -12,4 +12,4 @@
 * **Sample Consistency**: This ensures that the quarterly growth rate for the initial observation (**1964 Q1**) is calculated correctly rather than being marked as `Missing`, maintaining a consistent sample size across different estimation methods for the VAR model.
 
 #### 3. VAR Diagnostics and Visualization
-* **Automated Export**: All IRF plots are automatically organized and saved into their respective directories: `results/method1/` and `results/method2/`.
+* **Automated Export**: All VAR and IRF plots are automatically organized and saved into their respective directories: `results/method1/` and `results/method2/`.
