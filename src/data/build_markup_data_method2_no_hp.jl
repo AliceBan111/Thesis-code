@@ -2,10 +2,10 @@ using DataFrames, XLSX, Dates, Interpolations, ReadStatTables
 
 """
     build_markup_method2(df::DataFrame)
-    HP-filtered markup (Bils et al. style)
+    no HP-filtered markup (Bils et al. style)
 
 Adds two columns to df:
-- markup: hp_l_MWint87 interpolated to quarterly
+- markup_level: interpolated to quarterly
 - markup_growth: first difference of markup
 
 Requires: data/Hklems_combined_updatedMarkAug2015.dta

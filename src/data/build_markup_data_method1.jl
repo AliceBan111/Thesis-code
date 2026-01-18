@@ -5,7 +5,7 @@ using DataFrames, XLSX, Dates, Interpolations, ReadStatTables
     inverse of labor share (Nekarda & Ramey (2020))
 
 Adds two columns to df:
-- markup: -log(Labor / Value-added)
+- markup_level: -log(Labor / Value-added)
 - markup_growth: first difference of markup
 
 Requires: data/markup.xlsx (Sheet1)
@@ -50,7 +50,7 @@ function build_markup_method1(df::DataFrame)
     # 6. construct temp
     temp_markup_df = DataFrame(
         observation_date = parse_q_date.(selected_cols),
-        markup = markup_vec,
+        markup_level = markup_vec,
         markup_growth = [missing; diff(markup_vec)]
     )
 

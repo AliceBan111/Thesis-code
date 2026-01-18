@@ -8,8 +8,8 @@ Plot time series of variables that enter the VAR.
 Variables plotted:
 - ln_gdp_diff     : GDP growth
 - pi_p            : inflation
-- du              : change in unemployment rate
-- markup_growth   : markup growth
+- u               : unemployment rate
+- markup          : markup 
 - iL              : long-term interest rate
 
 The function uses a common sample across variables to ensure consistency
@@ -22,12 +22,12 @@ Arguments:
 """
 function plot_VAR_inputs(df::DataFrame; savepath="results/", tag="method")
 
-    vars = [:ln_gdp_diff, :pi_p, :du, :markup_growth, :iL]
+    vars = [:ln_gdp_diff, :pi_p, :u, :markup_level, :iL]
     titles = [
         "GDP growth (Δ log GDP)",
         "Inflation (π)",
-        "Change in unemployment rate (Δu)",
-        "Markup growth",
+        "Unemployment rate (u)",
+        "Markup Level",
         "Long-term interest rate"
     ]
 

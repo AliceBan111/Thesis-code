@@ -22,7 +22,7 @@ function estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=1, savep
     savefile = joinpath(folder_path, "Combined_IRFs_to_Shock_$(method_name).png")
     
     # 1. Prepare VAR data
-    svar_data = df[:, [:ln_gdp_diff, :pi_p, :du, :markup_growth, :iL]]
+    svar_data = df[:, [:ln_gdp_diff, :pi_p, :u, :markup_level, :iL]]
     X = convert(Matrix{Float64}, coalesce.(Matrix(svar_data), NaN))
     X_clean, fo, lo = CommonSample(X)
 
@@ -52,7 +52,7 @@ function estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=1, savep
     -1 0 0 0 0;   # ln_gdp_diff  ↓
     1 0 0 0 0;   # pi_p         ↑
     1 0 0 0 0;   # u            
-    1 0 0 0 0;   # markup_growth↑
+    1 0 0 0 0;   # markup↑
     0 0 0 0 0    # iL           unrestricted
 ]
 
@@ -74,8 +74,8 @@ function estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=1, savep
     # 5. Plot impulse responses for selected shock
     variable_names = ["GDP Growth (ln_gdp_diff)", 
                     "Price Inflation (pi_p)", 
-                    "Unemployment Rate Growth (du)", 
-                    "Markup Growth (markup_growth)", 
+                    "Unemployment Rate (u)", 
+                    "Markup Level", 
                     "Long-term Interest Rate (iL)"]
 
     nsteps_actual = size(SRout[:IRmed], 1)
