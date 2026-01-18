@@ -5,6 +5,7 @@ include("src/data/build_markup_data_method1.jl")
 include("src/data/build_markup_data_method2.jl")
 include("src/data/build_markup_data_method2_no_hp.jl")
 include("src/models/var_sr.jl")
+include("src/models/var.jl")
 
 using Dates, Plots
 
@@ -25,6 +26,11 @@ macro_df_method2_no_hp = build_macro_data(start_date_method2, end_date_method2)
 df_method1 = build_markup_method1(macro_df_method1)
 df_method2 = build_markup_method2(macro_df_method2)
 df_method2_no_hp = build_markup_method2_no_hp(macro_df_method2_no_hp)
+
+# 2.5 Plot VAR inputs
+plot_VAR_inputs(df_method1; tag="method1")
+plot_VAR_inputs(df_method2; tag="method2")
+plot_VAR_inputs(df_method2_no_hp; tag="method2_no_hp")
 
 # 3. Estimate VAR + Sign Restrictions
 res_method1 = estimate_VAR_SR(df_method1; method_name="method1")
