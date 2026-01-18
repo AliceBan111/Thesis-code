@@ -13,3 +13,8 @@
 
 #### 3. VAR Diagnostics and Visualization
 * **Automated Export**: All VAR and IRF plots are automatically organized and saved into their respective directories: `results/method1/` and `results/method2/`.
+
+**2026-01-18 update**
+* Using 1997-2023 KLEMS data to estimate SVAR
+* Using unemployment and markup level data to estimate svar
+* Var plots for all methods 

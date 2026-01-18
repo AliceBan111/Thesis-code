@@ -3,6 +3,7 @@ using DataFrames, XLSX, Statistics, Interpolations, Dates
 """
     build_markup_method2(df::DataFrame)
     non HP-filtered markup (Bils et al. style)
+    markup = log (gross output / (energy compensation + materials compensation + service compensation))
 
 Adds two columns to df:
 - markup_level: interpolated to quarterly
