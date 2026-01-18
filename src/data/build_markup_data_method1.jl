@@ -50,7 +50,7 @@ function build_markup_method1(df::DataFrame)
     # 6. construct temp
     temp_markup_df = DataFrame(
         observation_date = parse_q_date.(selected_cols),
-        markup = markup_vec,
+        markup_level = markup_vec,
         markup_growth = [missing; diff(markup_vec)]
     )
 

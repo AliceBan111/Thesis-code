@@ -16,13 +16,18 @@ Returns a dictionary with:
 - :VARopt => VAR options used for SR
 - :SRout => Sign restriction output
 """
-function estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=1, savepath::String="results/" , method_name::String="method")
-    folder_path = joinpath(pwd(), savepath, method_name)
+function estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=1, savepath::String="results/" , method_name::String="method", use_growth::Bool=true)
+    data_type_suffix = use_growth ? "growth" : "level"
+    u_col = use_growth ? :du : :u
+    mu_col = use_growth ? :markup_growth : :markup_level
+    
+    folder_name = "$(method_name)_$(data_type_suffix)"
+    folder_path = joinpath(pwd(), savepath, folder_name)
     mkpath(folder_path)
-    savefile = joinpath(folder_path, "Combined_IRFs_to_Shock_$(method_name).png")
+    savefile = joinpath(folder_path, "Combined_IRFs_to_Shock_$(folder_name).png")
     
     # 1. Prepare VAR data
-    svar_data = df[:, [:ln_gdp_diff, :pi_p, :du, :markup_growth, :iL]]
+    svar_data = df[:, [:ln_gdp_diff, :pi_p, u_col, mu_col, :iL]]
     X = convert(Matrix{Float64}, coalesce.(Matrix(svar_data), NaN))
     X_clean, fo, lo = CommonSample(X)
 
@@ -72,10 +77,13 @@ function estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=1, savep
     SRout = SR(VAR, SIGN, VARopt)
 
     # 5. Plot impulse responses for selected shock
+    u_label = use_growth ? "Unemployment Rate Growth (du)" : "Unemployment Rate (u)"
+    mu_label = use_growth ? "Markup Growth (markup_growth)" : "Markup Level (markup_level)"
+
     variable_names = ["GDP Growth (ln_gdp_diff)", 
                     "Price Inflation (pi_p)", 
-                    "Unemployment Rate Growth (du)", 
-                    "Markup Growth (markup_growth)", 
+                    u_label, 
+                    mu_label, 
                     "Long-term Interest Rate (iL)"]
 
     nsteps_actual = size(SRout[:IRmed], 1)
@@ -111,8 +119,8 @@ function estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=1, savep
     # end
 
     # Check if sign restrictions are satisfied
-    # Construct price markup level by integrating markup_growth (第4列)
-    price_markup_response = cumsum(SRout[:IRmed][:, 4, 1])  # markup_growth is 4th variable
+    # Construct price markup level by integrating markup_growth
+    price_markup_response = use_growth ? cumsum(SRout[:IRmed][:, 4, 1]) : SRout[:IRmed][1, 4, 1]  # markup_growth is 4th variable
 
     println("Price inflation impact response: ", round(SRout[:IRmed][1, 2, 1], digits=4))  # pi_p is 2nd variable
     println("Price markup impact response: ", round(price_markup_response[1], digits=4))
