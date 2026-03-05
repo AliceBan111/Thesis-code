@@ -13,9 +13,9 @@ function run_wage_heterogeneity_analysis(markup_shocks, shock_dates; output_suff
     shock_df[!, :quarter] = Dates.year.(shock_df.date) .+ (Dates.quarterofyear.(shock_df.date) .- 1) ./ 4
 
     # 2. CPS Data Procurement
-    url = "https://www.dropbox.com/scl/fi/6m7ccu2c2n58f6zcrjd7k/cps_00006.dat?rlkey=n937jeomgs4be3k9i70oe2zde&st=v1dw2ea7&dl=1"
-    local_path = "cps_00006.dat"
-    expected_hash = "34fcc6371a47152ae5fc48f83421cf28336acaaa5c2b4185914eef8fef131539"
+    url = "https://www.dropbox.com/scl/fi/iuhysf8d9u3jwyszmydoi/cps_00008.dat?rlkey=s778eox3hhtsiagm8islncwk3&st=a7b18oue&dl=0"
+    local_path = "cps_00008.dat"
+    expected_hash = "1e78220d8b6f0bed74ee51ee6233378f94a809952530338f21b207faf1f41acf"
 
     if !isfile(local_path)
         Downloads.download(url, local_path)
@@ -49,8 +49,8 @@ function run_wage_heterogeneity_analysis(markup_shocks, shock_dates; output_suff
         end
     end
 
-    df_working.EARNWEEK .= df_working.EARNWEEK ./ 100
-    df_working.EARNWT .= df_working.EARNWT ./ 10000
+    # df_working.EARNWEEK .= df_working.EARNWEEK ./ 100
+    # df_working.EARNWT .= df_working.EARNWT ./ 10000
 
     # Occupation Classification Logic
     function classify_collar(occ::Int)
