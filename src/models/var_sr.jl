@@ -63,11 +63,11 @@ function estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=1, savep
 ]
 
     VARopt[:nsteps] = 20
-    VARopt[:ndraws] = 10000
-    VARopt[:sr_hor] = 3
+    VARopt[:ndraws] = 1000
+    VARopt[:sr_hor] = 4
     VARopt[:pctg] = 68
-    VARopt[:sr_draw] = 500000
-    VARopt[:sr_rot] = 5000
+    VARopt[:sr_draw] = 100000
+    VARopt[:sr_rot] = 1000
     VARopt[:sr_mod] = 0
     VARopt[:mult] = 100
 
