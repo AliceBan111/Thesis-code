@@ -27,7 +27,7 @@ function estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=1, savep
     savefile = joinpath(folder_path, "Combined_IRFs_to_Shock_$(folder_name).png")
     
     # 1. Prepare VAR data
-    svar_data = df[:, [:ln_gdp_diff, :pi_p, u_col, mu_col, :iL]]
+    svar_data = df[:, [:ln_gdp_diff, :pi_p, u_col, mu_col, :iL, :tfp_util]]
     X = convert(Matrix{Float64}, coalesce.(Matrix(svar_data), NaN))
     X_clean, fo, lo = CommonSample(X)
 
@@ -54,11 +54,12 @@ function estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=1, savep
 
     # --- Sign restriction setup ---
     SIGN = [
-    -1 0 0 0 0;   # ln_gdp_diff  ↓
-    1 0 0 0 0;   # pi_p         ↑
-    1 0 0 0 0;   # du        ↑     
-    1 0 0 0 0;   # markup_growth↑
-    0 0 0 0 0    # iL           unrestricted
+    -1 0 0 0 0 0;   # ln_gdp_diff  ↓
+    1 0 0 0 0 0;   # pi_p         ↑
+    1 0 0 0 0 0;   # du        ↑     
+    1 0 0 0 0 0;   # markup_growth↑
+    0 0 0 0 0 0;   # iL           unrestricted
+    0 0 0 0 0 0   
 ]
 
     VARopt[:nsteps] = 20
@@ -84,13 +85,14 @@ function estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=1, savep
                     "Price Inflation (pi_p)", 
                     u_label, 
                     mu_label, 
-                    "Long-term Interest Rate (iL)"]
+                    "Long-term Interest Rate (iL)",
+                    "TFP"]
 
     nsteps_actual = size(SRout[:IRmed], 1)
 
     plt = plot(layout=(3, 2), size=(800, 600))
 
-    for i in 1:5
+    for i in 1:6
         plot!(plt[i], 1:nsteps_actual, SRout[:IRinf][:, i, shock_col],
             fillrange=SRout[:IRsup][:, i, shock_col],
             fillalpha=0.3,
