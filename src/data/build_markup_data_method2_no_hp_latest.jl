@@ -1,4 +1,4 @@
-using DataFrames, XLSX, Statistics, Interpolations, Dates
+using DataFrames, XLSX, Statistics, Interpolations, Dates, LinearAlgebra
 
 """
     build_markup_method2(df::DataFrame)
@@ -61,14 +61,71 @@ function build_markup_method2_no_hp_latest(df::DataFrame, file_path::String)
 
     sort!(agg_markup, :year)
 
-    # 3. interpolate to quarterly
-    values = agg_markup.annual_markup
-    itp = interpolate(values, BSpline(Cubic(Line(OnGrid()))))
-    
-    n_quarters = length(values) * 4
-    quarterly_indices = range(1, stop=length(values), length=n_quarters)
-    interpolated_values = [itp(x) for x in quarterly_indices]
+    # 3. Fernandez method interpolation to quarterly
+    # --------------------------------------------------
+    # Fernandez (1981): p = q + D'(DD')^{-1}(y - Dq)
+    # where q is a random-walk prior (first-difference smoother),
+    # D is the aggregation matrix (sum of 4 quarters = annual),
+    # y is the annual observed series.
+    # --------------------------------------------------
+    function fernandez_interpolate(y::Vector{Float64}, m::Int=4)
+        n = length(y)
+        N = n * m
 
+        # --- 1. First-difference matrix D1: (N-1) x N ---
+        D1 = zeros(N-1, N)
+        for i in 1:N-1
+            D1[i, i]   =  1.0
+            D1[i, i+1] = -1.0
+        end
+
+        # --- 2. Prior covariance Σ = (D1'D1)^+ ---
+        AtA   = D1' * D1
+        Sigma = pinv(AtA)   # N x N
+
+        # --- 3. Aggregation matrix C: n x N ---
+        C = zeros(n, N)
+        for i in 1:n
+            C[i, (i-1)*m+1 : i*m] .= 1.0
+        end
+
+        # --- 4. High-frequency indicator vector x (constant term) ---
+        # Without external indicator, use x = ones(N)
+        # Corresponding low-frequency aggregation: X = C * x = m * ones(n)
+        x = ones(N)       # N x 1
+        X = C * x         # n x 1, each element = m = 4
+
+        # --- 5. Estimate β (GLS) ---
+        # β̂ = (X' (CΣC')^{-1} X)^{-1}  X' (CΣC')^{-1} y
+        CSigmaC     = C * Sigma * C'          # n x n
+        CSigmaC_inv = pinv(CSigmaC)
+
+        beta_num = (X' * CSigmaC_inv * X)   # scalar
+        beta_den = (X' * CSigmaC_inv * y)   # scalar
+        beta_hat = beta_den / beta_num       # scalar
+
+        # --- 6. Full Fernandez formula ---
+        # p̂ = β̂·x + Σ C' (CΣC')^{-1} (y - C·β̂·x)
+        trend     = beta_hat .* x                           # N x 1, high-frequency trend
+        residuals = y .- C * trend                          # n x 1, annual residuals
+        p_hat     = trend .+ Sigma * C' * (CSigmaC_inv * residuals)
+
+        return p_hat
+
+        # --- 7. Verify annual aggregation constraint ---
+        reconstructed = C * p_hat
+        max_error = maximum(abs.(reconstructed .- y))
+        if max_error > 1e-6
+            @warn "Annual aggregation constraint not satisfied, max error = $max_error"
+        else
+            @info "Annual aggregation constraint satisfied, max error = $max_error"
+        end
+    end
+
+    y_annual = Float64.(agg_markup.annual_markup)
+    interpolated_values = fernandez_interpolate(y_annual, 4)
+
+    # Build quarterly date pool
     quarterly_markup_pool = DataFrame(
         "observation_date" => Date[],
         "markup_level" => Float64[]

@@ -20,13 +20,17 @@ function extract_structural_shocks(res_dict; shock_index=1)
     # 3. Retrieve the median impact matrix B from accepted draws (Size: N x N)
     ball = sr_part[:Ball]
     n_accepted = size(ball, 3)
-    median_idx = div(n_accepted, 2)
-    B_median = ball[:, :, median_idx]
+
+    impact_vals = [ball[4, shock_index, d] for d in 1:n_accepted]
+    sorted_idx  = sortperm(impact_vals)
+    median_draw = sorted_idx[div(n_accepted, 2)]
+    B_median = ball[:, :, median_draw]
     
     # 4. Compute structural shocks
-    # Formula: Structural Shocks = Residuals * inv(B_median)'
+    # Formula: Structural Shocks = (B⁻¹) * u
     # This transforms reduced-form errors into orthogonal structural shocks.
-    all_structural_shocks = resid_matrix * inv(B_median)'
+    B_inv = inv(B_median)
+    all_structural_shocks = (B_inv * resid_matrix')'
     
     # 5. Return the specific shock series
     return all_structural_shocks[:, shock_index]

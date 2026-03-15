@@ -128,12 +128,12 @@ function VARhd(VAR, VARopt)
     HD = Dict()
     HD[:shock] = zeros(nobs+nlag, nvar, nvar)
 
-    println("nobs = ", nobs)
-    println("nlag = ", nlag)
-    println("HDshock size: ", size(HDshock))
-    println("HDshock[i, 2:end, j] length: ", length(HDshock[1, 2:end, 1]))
-    println("After vcat length: ", length(vcat(fill(NaN, nlag), vec(HDshock[1, 2:end, 1]))))
-    println("HD[:shock] size: ", size(HD[:shock]))
+    # println("nobs = ", nobs)
+    # println("nlag = ", nlag)
+    # println("HDshock size: ", size(HDshock))
+    # println("HDshock[i, 2:end, j] length: ", length(HDshock[1, 2:end, 1]))
+    # println("After vcat length: ", length(vcat(fill(NaN, nlag), vec(HDshock[1, 2:end, 1]))))
+    # println("HD[:shock] size: ", size(HD[:shock]))
 
     for i in 1:nvar
         for j in 1:nvar

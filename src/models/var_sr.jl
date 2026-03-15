@@ -31,12 +31,17 @@ function estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=1, savep
     X = convert(Matrix{Float64}, coalesce.(Matrix(svar_data), NaN))
     X_clean, fo, lo = CommonSample(X)
 
+    X_means = mean(X_clean, dims=1)
+    X_stds  = std(X_clean, dims=1)
+    X_scaled = (X_clean .- X_means) ./ X_stds
+
+    println("X_scaled stds: ", round.(std(X_scaled, dims=1), digits=4))
     # 2. Determine optimal lag
-    optimal_lag, criteria = VARlag(X_clean, max_lags, 1)
+    optimal_lag, criteria = VARlag(X_scaled, max_lags, 1)
     println("Optimal lag: ", optimal_lag)
 
     # 3. Estimate VAR
-    VAR, VARopt = VARmodel(X_clean, optimal_lag, 1)
+    VAR, VARopt = VARmodel(X_scaled, optimal_lag, 1)
 
     # --- Model diagnostics ---
     println("\n--- Model Diagnostics ---")
@@ -47,7 +52,7 @@ function estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=1, savep
         println("Warning: VAR system may be unstable")
     end
 
-    for j in 1:size(X_clean, 2)
+    for j in 1:size(X_scaled, 2)
         println("Equation $j R²: ", VAR[Symbol("eq$j")][:rsqr])
     end
     println("--------------------------\n")
@@ -56,7 +61,7 @@ function estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=1, savep
     SIGN = [
     -1 0 0 0 0 0;   # ln_gdp_diff  ↓
     1 0 0 0 0 0;   # pi_p         ↑
-    1 0 0 0 0 0;   # du        ↑     
+    0 0 0 0 0 0;   # du             
     1 0 0 0 0 0;   # markup_growth↑
     0 0 0 0 0 0;   # iL           unrestricted
     0 0 0 0 0 0   
@@ -134,6 +139,8 @@ function estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=1, savep
         println("Positive comovement constraint NOT satisfied")
         println("Variables move in opposite directions")
     end
+
+    println("X_scaled stds: ", round.(std(X_scaled, dims=1), digits=4))
 
     return Dict(:VAR => VAR, :VARopt => VARopt, :SRout => SRout)
 end

@@ -31,23 +31,38 @@ function run_wage_heterogeneity_analysis(markup_shocks, shock_dates; output_suff
     df_working = DataFrame(YEAR=Int[], MONTH=Int[], EARNWT=Float64[], EMPSTAT=Int[], OCC=Int[], EARNWEEK=Float64[])
 
     open(local_path, "r") do io
-        for line in eachline(io)
-            empstat = parse(Int, strip(line[7:8]))
-            if empstat == 10 || empstat == 12
-                occ     = parse(Int, strip(line[9:11]))
-                earn    = parse(Float64, strip(line[22:29])) / 100.0
-                earnwt  = parse(Float64, strip(line[12:21])) / 10000.0
-                
-                if occ != 0 && earn != 9999.99 && earnwt > 0
-                    push!(df_working, (
-                        parse(Int, strip(line[1:4])),
-                        parse(Int, strip(line[5:6])),
-                        earnwt, empstat, occ, earn
-                    ))
-                end
+    for line in eachline(io)
+        length(line) < 29 && continue 
+        
+        empstat_str = strip(line[7:8])
+        isempty(empstat_str) && continue
+        empstat = tryparse(Int, empstat_str)
+        isnothing(empstat) && continue
+        
+        if empstat == 10 || empstat == 12
+            occ_str    = strip(line[9:11])
+            earn_str   = strip(line[22:29])
+            earnwt_str = strip(line[12:21])
+
+            (isempty(occ_str) || isempty(earn_str) || isempty(earnwt_str)) && continue
+            
+            occ    = tryparse(Int,     occ_str);    isnothing(occ)    && continue
+            earn   = tryparse(Float64, earn_str);   isnothing(earn)   && continue
+            earnwt = tryparse(Float64, earnwt_str); isnothing(earnwt) && continue
+
+            earn   /= 100.0
+            earnwt /= 10000.0
+
+            if occ != 0 && earn != 9999.99 && earnwt > 0
+                push!(df_working, (
+                    parse(Int, strip(line[1:4])),
+                    parse(Int, strip(line[5:6])),
+                    earnwt, empstat, occ, earn
+                ))
             end
         end
     end
+end
 
     # df_working.EARNWEEK .= df_working.EARNWEEK ./ 100
     # df_working.EARNWT .= df_working.EARNWT ./ 10000

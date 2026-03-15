@@ -29,13 +29,14 @@ function plot_VAR_inputs(df::DataFrame; savepath="results/", tag="method", use_g
 
     data_type_suffix = use_growth ? "growth" : "level"
 
-    vars = [:ln_gdp_diff, :pi_p, u_var, mu_var, :iL]
+    vars = [:ln_gdp_diff, :pi_p, u_var, mu_var, :iL, :tfp_util]
     titles = [
         "GDP growth (Δ log GDP)",
         "Inflation (π)",
         u_title,
         mu_title,
-        "Long-term interest rate"
+        "Long-term interest rate",
+        "TFP"
     ]
 
     # --- extract data and enforce common sample ---
