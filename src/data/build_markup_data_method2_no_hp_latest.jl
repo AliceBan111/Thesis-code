@@ -48,15 +48,13 @@ function build_markup_method2_no_hp_latest(df::DataFrame, file_path::String)
     # 2. calculate markup
     merged.markup_ind = log.(merged.go ./ (merged.energy .+ merged.material .+ merged.service))
 
-    agg_markup = combine(groupby(merged, :year)) do sdf
-        valid = .!isnan.(sdf.markup_ind) .& .!isinf.(sdf.markup_ind)
-        
-        sub_va = sdf.va[valid]
-        sub_mu = sdf.markup_ind[valid]
+    va_avg        = combine(groupby(merged, :Industry), :va => mean => :va_mean)
+    va_avg.weight = va_avg.va_mean ./ sum(va_avg.va_mean)
+    merged        = leftjoin(merged, va_avg[:, [:Industry, :weight]], on=:Industry)
 
-        weighted_val = sum(sub_mu .* (sub_va ./ sum(sub_va)))
-        
-        return (annual_markup = weighted_val,) 
+    agg_markup = combine(groupby(merged, :year)) do sdf
+        valid = .!isnan.(sdf.markup_ind) .& .!isinf.(sdf.markup_ind) .& .!ismissing.(sdf.markup_ind)
+        return (annual_markup = sum(sdf.markup_ind[valid] .* sdf.weight[valid]),)
     end
 
     sort!(agg_markup, :year)

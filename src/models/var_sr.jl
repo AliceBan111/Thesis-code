@@ -1,7 +1,7 @@
 using LinearAlgebra, Statistics, Plots, DataFrames
 
 """
-    estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=4, savepath::String="results/")
+    estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=1, savepath::String="results/")
 
 Estimate a reduced-form VAR and apply sign restrictions.
 
@@ -27,7 +27,7 @@ function estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=1, savep
     savefile = joinpath(folder_path, "Combined_IRFs_to_Shock_$(folder_name).png")
     
     # 1. Prepare VAR data
-    svar_data = df[:, [:ln_gdp_diff, :pi_p, u_col, mu_col, :iL, :tfp_util]]
+    svar_data = df[:, [:ln_gdp_diff, :pi_p, u_col, mu_col, :Interest, :tfp_level]]
     X = convert(Matrix{Float64}, coalesce.(Matrix(svar_data), NaN))
     X_clean, fo, lo = CommonSample(X)
 
@@ -63,8 +63,8 @@ function estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=1, savep
     1 0 0 0 0 0;   # pi_p         ↑
     0 0 0 0 0 0;   # du             
     1 0 0 0 0 0;   # markup_growth↑
-    0 0 0 0 0 0;   # iL           unrestricted
-    0 0 0 0 0 0   
+    0 0 0 0 0 0;   # interest rate           
+    0 0 0 0 0 0    # TFP
 ]
 
     VARopt[:nsteps] = 20
@@ -90,7 +90,7 @@ function estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=1, savep
                     "Price Inflation (pi_p)", 
                     u_label, 
                     mu_label, 
-                    "Long-term Interest Rate (iL)",
+                    "Federal Funds Rate",
                     "TFP"]
 
     nsteps_actual = size(SRout[:IRmed], 1)
@@ -142,5 +142,7 @@ function estimate_VAR_SR(df::DataFrame; max_lags::Int=4, shock_col::Int=1, savep
 
     println("X_scaled stds: ", round.(std(X_scaled, dims=1), digits=4))
 
-    return Dict(:VAR => VAR, :VARopt => VARopt, :SRout => SRout)
+    resids = VAR[:resid]
+
+    return Dict(:VAR => VAR, :resids => resids, :VARopt => VARopt, :SRout => SRout)
 end

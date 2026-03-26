@@ -1,4 +1,4 @@
-function run_wage_lp_analysis(markup_shocks, shock_dates; output_suffix="method2", nhorz=8, nlag=4)
+function run_wage_lp_analysis(markup_shocks, shock_dates; output_suffix="method2", nhorz=8, nlag=2)
 
     # 1. Date Alignment 
     shock_df = DataFrame(date = shock_dates, markup_shock = markup_shocks)
@@ -89,14 +89,14 @@ function run_wage_lp_analysis(markup_shocks, shock_dates; output_suffix="method2
 
     df_merged = innerjoin(
         innerjoin(
-            df_white[:, [:quarter, :dlog_wage]],
-            df_blue[:,  [:quarter, :dlog_wage]],
+            df_white[:, [:quarter, :avg_wage, :dlog_wage]],
+            df_blue[:,  [:quarter, :avg_wage, :dlog_wage]],
             on=:quarter, makeunique=true
         ),
         shock_df[:, [:quarter, :markup_shock]],
         on=:quarter
     )
-    rename!(df_merged, :dlog_wage => :white_wage, :dlog_wage_1 => :blue_wage)
+    rename!(df_merged, :dlog_wage => :white_wage, :dlog_wage_1 => :blue_wage, :avg_wage  => :white_wage_level, :avg_wage_1  => :blue_wage_level)
     df_merged = dropmissing(df_merged)
     sort!(df_merged, :quarter)
 
@@ -111,25 +111,46 @@ function run_wage_lp_analysis(markup_shocks, shock_dates; output_suffix="method2
 
     df_merged[!, :white_wage_ma] = moving_avg(df_merged.white_wage, 4)
     df_merged[!, :blue_wage_ma]  = moving_avg(df_merged.blue_wage,  4)
-    df_merged_clean = dropmissing(df_merged, [:white_wage_ma, :blue_wage_ma])
+    df_merged[!, :white_wage_level_ma] = moving_avg(df_merged.white_wage_level, 4)
+    df_merged[!, :blue_wage_level_ma]  = moving_avg(df_merged.blue_wage_level,  4)
+    df_merged_clean = dropmissing(df_merged, [:white_wage_ma, :blue_wage_ma, :white_wage_level_ma, :blue_wage_level_ma])
 
     # 8. Local Projections
     r_white = lp(df_merged_clean, :white_wage_ma,
              xnames  = (:markup_shock,),
              wnames  = (:markup_shock,),
-             nlag    = 2,
+             nlag    = nlag,
              nhorz   = nhorz,
              minhorz = 1)
 
     r_blue = lp(df_merged_clean, :blue_wage_ma,
                 xnames  = (:markup_shock,),
                 wnames  = (:markup_shock,),
-                nlag    = 2,
+                nlag    = nlag,
                 nhorz   = nhorz,
                 minhorz = 1)
 
     irf_white = irf(r_white, :white_wage_ma, :markup_shock)
     irf_blue  = irf(r_blue,  :blue_wage_ma,  :markup_shock)
+
+    # 8b. Local Projections — level
+    r_white_level = lp(df_merged_clean, :white_wage_level_ma,
+                       xnames  = (:markup_shock,),
+                       wnames  = (:markup_shock,),
+                       nlag    = nlag,
+                       nhorz   = nhorz,
+                       minhorz = 1)
+
+    r_blue_level = lp(df_merged_clean, :blue_wage_level_ma,
+                      xnames  = (:markup_shock,),
+                      wnames  = (:markup_shock,),
+                      nlag    = nlag,
+                      nhorz   = nhorz,
+                      minhorz = 1)
+
+    irf_white_level = irf(r_white_level, :white_wage_level_ma, :markup_shock)
+    irf_blue_level  = irf(r_blue_level,  :blue_wage_level_ma,  :markup_shock)
+
 
     # 9. Extract IRF
     function extract_irf(f)
@@ -143,6 +164,9 @@ function run_wage_lp_analysis(markup_shocks, shock_dates; output_suffix="method2
 
     white_coef, white_lo, white_hi, horizons_w = extract_irf(irf_white)
     blue_coef,  blue_lo,  blue_hi,  horizons_b = extract_irf(irf_blue)
+
+    white_level_coef, white_level_lo, white_level_hi, horizons_wl = extract_irf(irf_white_level)
+    blue_level_coef,  blue_level_lo,  blue_level_hi,  horizons_bl = extract_irf(irf_blue_level)
 
     # 10. Save & Plot
     save_path = joinpath(pwd(), "results", output_suffix, "wage_heterogeneity_lp")
@@ -180,10 +204,45 @@ function run_wage_lp_analysis(markup_shocks, shock_dates; output_suffix="method2
     hline!([0], color = :black, ls = :dot, label = "")
     savefig(plt_compare, joinpath(save_path, "lp_irf_comparison.png"))
 
-    println("LP plots saved to: $save_path")
-    display(plt_white)
-    display(plt_blue)
-    display(plt_compare)
 
-    return df_merged_clean, r_white, r_blue, irf_white, irf_blue
+    # plot-level
+    plt_white_level = plot(horizons_wl, white_level_coef,
+                           ribbon = (white_level_coef .- white_level_lo, white_level_hi .- white_level_coef),
+                           fillalpha = 0.25, color = :blue, lw = 2,
+                           label = "White-collar",
+                           title = "LP-IRF: Markup Shock → White-collar Wage Level ($output_suffix)",
+                           xlabel = "Horizon (Quarters)", ylabel = "Response of Wage Level",
+                           size = (900, 500))
+    hline!([0], color = :black, ls = :dot, label = "")
+    savefig(plt_white_level, joinpath(save_path, "lp_irf_white_collar_level.png"))
+
+    plt_blue_level = plot(horizons_bl, blue_level_coef,
+                          ribbon = (blue_level_coef .- blue_level_lo, blue_level_hi .- blue_level_coef),
+                          fillalpha = 0.25, color = :green, lw = 2,
+                          label = "Blue-collar",
+                          title = "LP-IRF: Markup Shock → Blue-collar Wage Level ($output_suffix)",
+                          xlabel = "Horizon (Quarters)", ylabel = "Response of Wage Level",
+                          size = (900, 500))
+    hline!([0], color = :black, ls = :dot, label = "")
+    savefig(plt_blue_level, joinpath(save_path, "lp_irf_blue_collar_level.png"))
+
+    plt_compare_level = plot(horizons_wl, white_level_coef,
+                             ribbon = (white_level_coef .- white_level_lo, white_level_hi .- white_level_coef),
+                             fillalpha = 0.2, color = :blue, lw = 2, label = "White-collar",
+                             title = "LP-IRF Comparison: Markup Shock → Wage Levels ($output_suffix)",
+                             xlabel = "Horizon (Quarters)", ylabel = "Response of Wage Level",
+                             size = (1000, 600))
+    plot!(plt_compare_level, horizons_bl, blue_level_coef,
+          ribbon = (blue_level_coef .- blue_level_lo, blue_level_hi .- blue_level_coef),
+          fillalpha = 0.2, color = :green, lw = 2, label = "Blue-collar")
+    hline!([0], color = :black, ls = :dot, label = "")
+    savefig(plt_compare_level, joinpath(save_path, "lp_irf_comparison_level.png"))
+
+    println("LP plots saved to: $save_path")
+    display(plt_white);         display(plt_blue);         display(plt_compare)
+    display(plt_white_level);   display(plt_blue_level);   display(plt_compare_level)
+
+    return df_merged_clean,
+           r_white,       r_blue,       irf_white,       irf_blue,
+           r_white_level, r_blue_level, irf_white_level, irf_blue_level
 end

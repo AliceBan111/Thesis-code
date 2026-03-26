@@ -65,15 +65,27 @@ function build_macro_data_with_TFP(start_date::Date, end_date::Date)
     df = leftjoin(df, temp_u, on = :observation_date)
 
     # 5. 10-year government bond
+#     iL_data = CSV.read(
+#     joinpath(@__DIR__, "../../data/GS10.csv"),
+#     DataFrame
+# )
+#     iL_filtered = iL_data[(iL_data.observation_date .>= start_date) .&
+#                           (iL_data.observation_date .<= end_date), :]
+    
+#     temp_iL = iL_filtered[:, [:observation_date, :GS10]]
+#     rename!(temp_iL, :GS10 => :iL)
+    
+#     df = leftjoin(df, temp_iL, on = :observation_date)
+
     iL_data = CSV.read(
-    joinpath(@__DIR__, "../../data/GS10.csv"),
+    joinpath(@__DIR__, "../../data/FEDFUNDS.csv"),
     DataFrame
 )
     iL_filtered = iL_data[(iL_data.observation_date .>= start_date) .&
                           (iL_data.observation_date .<= end_date), :]
     
-    temp_iL = iL_filtered[:, [:observation_date, :GS10]]
-    rename!(temp_iL, :GS10 => :iL)
+    temp_iL = iL_filtered[:, [:observation_date, :FEDFUNDS]]
+    rename!(temp_iL, :FEDFUNDS => :Interest)
     
     df = leftjoin(df, temp_iL, on = :observation_date)
 
@@ -84,7 +96,7 @@ function build_macro_data_with_TFP(start_date::Date, end_date::Date)
         infer_eltypes = true
     ))
     
-    TFP_filtered = TFP_data[:, [1, 14]]
+    TFP_filtered = TFP_data[:, [1, 14]] # column N
     rename!(TFP_filtered, 
     names(TFP_filtered)[1] => :observation_date,
     names(TFP_filtered)[2] => :tfp_util
@@ -94,6 +106,9 @@ function build_macro_data_with_TFP(start_date::Date, end_date::Date)
                             (TFP_filtered.observation_date .<= end_date), :]
 
     df = leftjoin(df, TFP_filtered, on = :observation_date)
+
+    sort!(df, :observation_date)
+    df.tfp_level = cumsum(coalesce.(df.tfp_util, 0.0))
 
     return df
 end
