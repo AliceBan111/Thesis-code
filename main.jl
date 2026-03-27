@@ -1,57 +1,24 @@
-# Include utility functions
-include("src/ToolBox/load_var.jl")
-include("src/data/build_macro_data.jl")
-include("src/data/build_macro_data_with_TFP.jl")
-include("src/data/build_markup_data_method2.jl")
-include("src/data/build_markup_data_method2_no_hp.jl")
-include("src/data/build_markup_data_method2_no_hp_latest.jl")
-include("src/models/var_sr.jl")
-include("src/models/var.jl")
-include("src/wage_shock_analysis/extract_shocks.jl")  
-include("src/wage_shock_analysis/wage_heterogeneity.jl")
-
-using CSV, DataFrames, Statistics, Plots, Dates, Downloads, SHA
+include("src/data/data_prep.jl")
+include("src/wage_shock_analysis/02_lp_estimation.jl")
+include("src/wage_shock_analysis/03_significance_tests.jl")
+include("src/wage_shock_analysis/04_robustness.jl")
+include("src/wage_shock_analysis/05_plots.jl")
 
 cd(@__DIR__)
 
-# 1. Load macro data
-# start_date_method1 = Date("1964-01-01")
-# end_date_method1   = Date("2017-12-31")
 
-# start_date_method2 = Date("1987-01-01")
-# end_date_method2   = Date("2012-12-31")
+# ── Step 1: Data preparation ──────────────────────────────────
+panel = main()   # from 01_data_prep.jl
 
-start_date_method2_latest = Date("1997-01-01")
-end_date_method2_latest   = Date("2023-12-31")
+# ── Step 2: LP estimation ─────────────────────────────────────
+results_df, boot_store, coef_names, irfs = run_estimation(panel)    # from 02_lp_estimation.jl
 
-# macro_df_method1 = build_macro_data(start_date_method1, end_date_method1)
-# macro_df_method2 = build_macro_data(start_date_method2, end_date_method2)
-# macro_df_method2_no_hp = build_macro_data(start_date_method2, end_date_method2)
-# macro_df_method2_latest = build_macro_data(start_date_method2_latest, end_date_method2_latest)
-macro_df_method2_latest = build_macro_data_with_TFP(start_date_method2_latest, end_date_method2_latest)
 
-# 2. Build markup data
-# df_method1 = build_markup_method1(macro_df_method1)
-# df_method2 = build_markup_method2(macro_df_method2)
-# df_method2_no_hp = build_markup_method2_no_hp(macro_df_method2_no_hp)
-df_method2_no_hp_latest = build_markup_method2_no_hp_latest(macro_df_method2_latest, "data/KLEMS_latest.xlsx")
+# ── Step 3: Significance tests ────────────────────────────────
+sig_table, pw_bh = run_significance_tests(irfs, boot_store, coef_names)   # from 03_significance_tests.jl
 
-# 2.5 Plot VAR inputs
-plot_VAR_inputs(df_method1; tag="method1", use_growth  = true)
-plot_VAR_inputs(df_method1; tag="method1", use_growth  = false)
-plot_VAR_inputs(df_method2; tag="method2", use_growth  = true)
-plot_VAR_inputs(df_method2; tag="method2", use_growth  = false)
-plot_VAR_inputs(df_method2_no_hp; tag="method2_no_hp", use_growth  = true)
-plot_VAR_inputs(df_method2_no_hp; tag="method2_no_hp", use_growth  = false)
-plot_VAR_inputs(df_method2_no_hp_latest; tag="method2_no_hp_latest", use_growth  = true)
-plot_VAR_inputs(df_method2_no_hp_latest; tag="method2_no_hp_latest", use_growth  = false)
+# ── Step 4: Robustness checks ─────────────────────────────────
+run_all_robustness(panel)   # from 04_robustness.jl
 
-# 3. Estimate VAR + Sign Restrictions
-# res_method1 = estimate_VAR_SR(df_method1; method_name="method1", use_growth  = true)
-# res_method1 = estimate_VAR_SR(df_method1; method_name="method1", use_growth  = false)
-# res_method2 = estimate_VAR_SR(df_method2; method_name="method2", use_growth  = true)
-# res_method2 = estimate_VAR_SR(df_method2; method_name="method2", use_growth  = false)
-# res_method2_no_hp = estimate_VAR_SR(df_method2_no_hp; method_name="method2_no_hp", use_growth  = true)
-# res_method2_no_hp = estimate_VAR_SR(df_method2_no_hp; method_name="method2_no_hp", use_growth  = false)
-res_method2_no_hp_latest = estimate_VAR_SR(df_method2_no_hp_latest; method_name="method2_no_hp_latest", use_growth  = true)
-res_method2_no_hp_latest = estimate_VAR_SR(df_method2_no_hp_latest; method_name="method2_no_hp_latest", use_growth  = false)
+# ── Step 5: Plots ─────────────────────────────────────────────
+run_plots(irfs, sig_table, pw_bh)   # from 05_plots.jl
