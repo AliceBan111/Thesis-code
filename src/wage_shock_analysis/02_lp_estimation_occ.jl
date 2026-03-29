@@ -15,10 +15,11 @@ include("../data/data_prep.jl")   # H_MAX, L_LAG, OCC_LABELS, OUTPUT_DIR
 
 # Bootstrap settings
 const N_BOOT       = 500    # number of bootstrap replications
-const BLOCK_SIZE   = 12     # months per block (one full seasonal cycle)
+const BLOCK_SIZE   = 3     # months per block (one full seasonal cycle)
 const BOOT_SEED    = 42
-const CI_LEVELS    = [0.90, 0.95]
-const H_MAX = 32
+const CI_LEVELS    = [0.90, 0.95, 0.68]
+const H_MAX = 36
+const DK_BW = 4
 
 # =============================================================================
 # 1. DRISCOLL-KRAAY STANDARD ERRORS  (reference / diagnostics only)
@@ -57,7 +58,7 @@ function driscoll_kraay_vcov(X::Matrix{Float64}, e::Vector{Float64},
 end
 
 # =============================================================================
-# 2. WITHIN (DEMEANING) TRANSFORMATION  — cell fixed effects
+# 2. WITHIN (DEMEANING) TRANSFORMATION  — fixed effects
 # =============================================================================
 function within_transform(df::DataFrame,
                            yvars::Vector{Symbol},
@@ -80,8 +81,8 @@ end
 # dep_var_{c,t} = log_rwage_{c,t+h} − log_rwage_{c,t−1}
 
 function build_lp_data(panel::DataFrame, h::Int)::Union{DataFrame, Nothing}
-    sort!(panel, [:cell_id, :date])
-    gdf    = groupby(panel, :cell_id)
+    sort!(panel, [:occ_group, :date])
+    gdf    = groupby(panel, :occ_group)
     chunks = DataFrame[]
 
     for g in gdf
@@ -89,10 +90,10 @@ function build_lp_data(panel::DataFrame, h::Int)::Union{DataFrame, Nothing}
         n   = nrow(sub)
 
         lead_wage = Vector{Union{Float64,Missing}}(missing, n)
-        h < n && (lead_wage[1:n-h] = sub.log_rwage[h+1:n])
+        h < n && (lead_wage[1:n-h] = sub.log_rincome[h+1:n])
 
         lag_wage = Vector{Union{Float64,Missing}}(missing, n)
-        lag_wage[2:n] = sub.log_rwage[1:n-1]
+        lag_wage[2:n] = sub.log_rincome[1:n-1]
 
         sub[!, :dep_var]  = lead_wage .- lag_wage
         sub[!, :lag_wage] = lag_wage
@@ -100,7 +101,7 @@ function build_lp_data(panel::DataFrame, h::Int)::Union{DataFrame, Nothing}
     end
 
     df_h = vcat(chunks...)
-    required = vcat([:dep_var, :shock, :log_oil_lag1, :ffr_lag1, :unrate_lag1],
+    required = vcat([:dep_var, :shock, :log_oil_lag1, :ffr_lag1],
                     [Symbol("shock_lag", l) for l in 1:L_LAG])
     df_h = dropmissing(df_h, required)
     return nrow(df_h) == 0 ? nothing : df_h
@@ -117,8 +118,8 @@ function build_col_lists!(df_h::DataFrame)
         push!(inter_cols, col)
     end
     lag_cols   = [Symbol("shock_lag", l) for l in 1:L_LAG]
-    macro_cols = [:log_oil_lag1, :ffr_lag1, :unrate_lag1]
-    cell_cols  = [:age_mean, :female_share, :married_share]
+    macro_cols = [:log_oil_lag1, :ffr_lag1]
+    cell_cols  = [:log_rwage, :age_mean, :female_share, :married_share, :hours_mean, :unemp_rate]
     x_cols     = vcat([:shock], inter_cols, lag_cols, macro_cols, cell_cols)
     return x_cols, inter_cols
 end
@@ -128,7 +129,7 @@ end
 # =============================================================================
 function ols_within(df_h::DataFrame, y_col::Symbol,
                      x_cols::Vector{Symbol}, panel::DataFrame)
-    df_w = within_transform(df_h, [y_col], x_cols, :cell_id)
+    df_w = within_transform(df_h, [y_col], x_cols, :occ_group)
     df_w = dropmissing(df_w, vcat([y_col], x_cols))
     nrow(df_w) == 0 && return nothing
 
@@ -174,14 +175,20 @@ function block_bootstrap_lp(panel::DataFrame, h::Int;
     x_cols, _ = build_col_lists!(df_h)
     y_col     = :dep_var
 
-    base = ols_within(df_h, y_col, x_cols, panel)
-    isnothing(base) && return nothing
+    df_w = within_transform(df_h, [y_col], x_cols, :occ_group)
+    df_w = dropmissing(df_w, vcat([y_col], x_cols))
+    nrow(df_w) == 0 && return nothing
 
-    K          = length(base.β)
+    Y_base = Float64.(df_w[!, y_col])
+    X_base = hcat(ones(nrow(df_w)), Matrix{Float64}(df_w[!, x_cols]))
+    β_base = (X_base' * X_base) \ (X_base' * Y_base)
+    e_base = Y_base .- X_base * β_base
+
+    K          = length(β_base)
     coef_names = vcat([:intercept], x_cols)
 
     # ── time structure ──────────────────────────────────────────────────────
-    all_dates  = sort(unique(df_h.date))
+    all_dates  = sort(unique(df_w.date))
     T          = length(all_dates)
     n_blocks   = ceil(Int, T / block_size)
 
@@ -207,31 +214,18 @@ end
 
         # Collect row indices for this bootstrap sample
         new_rows = Int[]
-        for orig_d in boot_dates
-            append!(new_rows, get(date_to_rows, orig_d, Int[]))
+        for d in boot_dates
+            append!(new_rows, get(date_to_rows, d, Int[]))
         end
         isempty(new_rows) && continue
 
-        df_boot = df_h[new_rows, :]
+        Y_boot = Y_base[new_rows]
+        X_boot = X_base[new_rows, :]
 
-        # Assign sequential dates so within-transform sees balanced panel
-        boot_date_col = Date[]
-        for (new_t, orig_d) in enumerate(boot_dates)
-            n_obs_t = length(get(date_to_rows, orig_d, Int[]))
-            append!(boot_date_col, fill(all_dates[new_t], n_obs_t))
-        end
-        df_boot[!, :date] = boot_date_col
+        β_boot = (X_boot' * X_boot) \ (X_boot' * Y_boot)
+        any(isnan, β_boot) && continue
 
-        # Rebuild interaction columns on the bootstrap sample
-        for g in 2:9
-            col = Symbol("shock_x_occ", g)
-            df_boot[!, col] = df_boot.shock .* Float64.(df_boot.occ_group .== g)
-        end
-
-        fit = ols_within(df_boot, y_col, x_cols, panel)
-        isnothing(fit) && continue
-
-        boot_matrix[b, :] = fit.β
+        boot_matrix[b, :] = β_boot
     end
 end
 @time begin
@@ -253,15 +247,18 @@ end
         ci_hi[lvl] = [quantile(boot_valid[:, k], 1.0 - α / 2) for k in 1:K]
     end
 end
-    # ── DK SE (reference) ───────────────────────────────────────────────────
-    @time V     = driscoll_kraay_vcov(base.X, base.e, base.t_idx; m = BLOCK_SIZE)
-    dk_se = sqrt.(diag(V))
+
+    all_dates_panel = sort(unique(panel.date))
+    date_map        = Dict(d => i for (i, d) in enumerate(all_dates_panel))
+    t_idx           = [date_map[d] for d in df_w.date]
+    V               = driscoll_kraay_vcov(X_base, e_base, t_idx; m = DK_BW)
+    dk_se           = sqrt.(diag(V))
 
     # ── results DataFrame ───────────────────────────────────────────────────
     res = DataFrame(
         horizon      = h,
         coef_name    = coef_names,
-        beta         = base.β,
+        beta         = β_base,
         dk_se        = dk_se,
         boot_se      = [std(boot_valid[:, k]) for k in 1:K],
         ci_lo95      = ci_lo[0.95],
@@ -352,12 +349,16 @@ function extract_irf(results_df::DataFrame,
                           ci_hi95  = quantile(bd, 0.975),
                           ci_lo90  = quantile(bd, 0.05),
                           ci_hi90  = quantile(bd, 0.95),
+                          ci_lo68  = quantile(bd, 0.16),
+                          ci_hi68  = quantile(bd, 0.84),
                           theta            = 0.0,
                           boot_se_theta    = NaN,
                           ci_lo95_theta    = NaN,
                           ci_hi95_theta    = NaN,
                           ci_lo90_theta    = NaN,
-                          ci_hi90_theta    = NaN))
+                          ci_hi90_theta    = NaN,
+                          ci_lo68_theta    = NaN,
+                          ci_hi68_theta    = NaN))
         end
     end
     irfs[1] = DataFrame(rows1)
@@ -390,12 +391,16 @@ function extract_irf(results_df::DataFrame,
                     ci_hi95          = quantile(abs_boot, 0.975),
                     ci_lo90          = quantile(abs_boot, 0.05),
                     ci_hi90          = quantile(abs_boot, 0.95),
+                    ci_lo68          = quantile(abs_boot, 0.16),
+                    ci_hi68          = quantile(abs_boot, 0.84),
                     theta            = θ_h,
                     boot_se_theta    = std(θ_boot),
                     ci_lo95_theta    = quantile(θ_boot, 0.025),
                     ci_hi95_theta    = quantile(θ_boot, 0.975),
                     ci_lo90_theta    = quantile(θ_boot, 0.05),
                     ci_hi90_theta    = quantile(θ_boot, 0.95),
+                    ci_lo68_theta    = quantile(θ_boot, 0.16),
+                    ci_hi68_theta    = quantile(θ_boot, 0.84),
                 ))
             end
         end

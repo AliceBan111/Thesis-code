@@ -18,7 +18,7 @@ using CSV, DataFrames, DataFramesMeta
 using LinearAlgebra, Statistics, Distributions
 using Printf
 
-include("02_lp_estimation.jl")   # boot_store, coef_names, OCC_LABELS, OUTPUT_DIR
+include("02_lp_estimation_edu.jl")   # boot_store, coef_names, EDU_LABELS, OUTPUT_DIR
 
 # =============================================================================
 # 1. POINTWISE BOOTSTRAP p-VALUES
@@ -100,7 +100,7 @@ function extract_boot_theta(boot_store::Dict{Int, Matrix{Float64}},
                              g::Int,
                              horizon_range::AbstractVector{Int})::Matrix{Float64}
 
-    col_name = Symbol("shock_x_occ", g)
+    col_name = Symbol("shock_x_edu", g)
     ti       = findfirst(==(col_name), coef_names)
     isnothing(ti) && return Matrix{Float64}(undef, 0, 0)
 
@@ -167,8 +167,8 @@ function build_significance_table(irfs::Dict{Int, DataFrame},
         end
 
         push!(rows, (
-            occ_group    = g,
-            occ_label    = get(OCC_LABELS, g, "group_$g"),
+            edu_group    = g,
+            edu_label    = get(EDU_LABELS, g, "group_$g"),
             # Full path Wald
             W_full       = w_full.W,
             H_full       = w_full.H,
@@ -198,7 +198,7 @@ end
 # across the 8 non-baseline groups.
 
 function bh_correction(p_values::Vector{Float64};
-                         fdr_level::Float64 = 0.05)::Vector{Bool}
+                         fdr_level::Float64 = 0.10)::Vector{Bool}
     n      = length(p_values)
     ord    = sortperm(p_values)
     rank   = invperm(ord)
@@ -211,7 +211,7 @@ function bh_correction(p_values::Vector{Float64};
     return reject
 end
 
-function apply_bh!(sig_table::DataFrame; fdr_level::Float64 = 0.05)::DataFrame
+function apply_bh!(sig_table::DataFrame; fdr_level::Float64 = 0.10)::DataFrame
     sig_table[!, :bh_reject_full]  = bh_correction(sig_table.p_full;  fdr_level)
     sig_table[!, :bh_reject_short] = bh_correction(sig_table.p_short; fdr_level)
     sig_table[!, :bh_reject_long]  = bh_correction(sig_table.p_long;  fdr_level)
@@ -255,7 +255,7 @@ function build_pointwise_table(irfs::Dict{Int, DataFrame},
 
     for g in 2:9
         !haskey(irfs, g) && continue
-        col_name = Symbol("shock_x_occ", g)
+        col_name = Symbol("shock_x_edu", g)
         ti       = findfirst(==(col_name), coef_names)
         isnothing(ti) && continue
 
@@ -269,8 +269,8 @@ function build_pointwise_table(irfs::Dict{Int, DataFrame},
             p      = bootstrap_pvalue_pointwise(theta_h, boot_θ)
 
             push!(all_rows, (
-                occ_group = g,
-                occ_label = get(OCC_LABELS, g, "group_$g"),
+                edu_group = g,
+                edu_label = get(EDU_LABELS, g, "group_$g"),
                 horizon   = h,
                 theta     = theta_h,
                 boot_se   = std(boot_θ),
@@ -308,11 +308,11 @@ function run_significance_tests(irfs::Dict{Int, DataFrame},
     pw_bh = build_pointwise_table(irfs, boot_store, coef_names)
 
     # ── print summary ────────────────────────────────────────────────────────
-    println("\nOccupational Group Summary:")
+    println("\nEducational Group Summary:")
     println("-"^90)
     for row in eachrow(sig_table)
         @printf("%-35s | Short p=%.3f (%s) | Long p=%.3f (%s) | %-20s\n",
-            row.occ_label,
+            row.edu_label,
             row.p_short, row.bh_reject_short ? "sig*" : "ns  ",
             row.p_long,  row.bh_reject_long  ? "sig*" : "ns  ",
             row.persistence_type)

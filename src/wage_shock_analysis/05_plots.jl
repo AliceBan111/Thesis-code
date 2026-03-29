@@ -37,10 +37,13 @@ function plot_absolute_irf(irfs::Dict{Int, DataFrame}, pw_bh::DataFrame;
 
         # 95% bootstrap CI band (outer, lighter)
         band!(ax, df.horizon, df.ci_lo95, df.ci_hi95;
-              color = (GROUP_COLORS[idx], 0.18))
+              color = (GROUP_COLORS[idx], 0.15))
         # 90% bootstrap CI band (inner, darker)
         band!(ax, df.horizon, df.ci_lo90, df.ci_hi90;
               color = (GROUP_COLORS[idx], 0.30))
+        # 68% bootstrap CI band (inner, darker)
+        band!(ax, df.horizon, df.ci_lo68, df.ci_hi68;
+              color = (GROUP_COLORS[idx], 0.50))
         # Point estimates
         lines!(ax, df.horizon, df.beta_abs;
                color = GROUP_COLORS[idx], linewidth = 2)
@@ -51,7 +54,11 @@ function plot_absolute_irf(irfs::Dict{Int, DataFrame}, pw_bh::DataFrame;
         if g > 1
             sig_pts = @subset(pw_bh, :occ_group .== g, :bh_reject .== true)
             if nrow(sig_pts) > 0
-                sig_vals = innerjoin(sig_pts, df, on = :horizon)
+                sig_vals = innerjoin(
+                            select(sig_pts, :horizon, :occ_group),
+                            select(df, :horizon, :beta_abs),
+                            on = :horizon)
+
                 scatter!(ax, sig_vals.horizon, sig_vals.beta_abs;
                          color = GROUP_COLORS[idx], marker = :star5, markersize = 8)
             end
@@ -62,7 +69,7 @@ function plot_absolute_irf(irfs::Dict{Int, DataFrame}, pw_bh::DataFrame;
 
     # Shared legend note
     Label(fig[4, 1:3],
-          "Shaded bands: 90% and 95% block-bootstrap confidence intervals (B=$N_BOOT, block=$BLOCK_SIZE months). ★ = BH-significant (q=0.05). Baseline: Managerial (Group 1).",
+          "Shaded bands: 68%, 90% and 95% block-bootstrap confidence intervals (B=$N_BOOT, block=$BLOCK_SIZE months). ★ = BH-significant (q=0.05). Baseline: Managerial (Group 1).",
           fontsize = 9, tellwidth = false)
 
     save(output_path, fig)
@@ -90,9 +97,12 @@ function plot_theta_irf(irfs::Dict{Int, DataFrame}, pw_bh::DataFrame;
                    titlesize = 10)
 
         band!(ax, df.horizon, df.ci_lo95_theta, df.ci_hi95_theta;
-              color = (GROUP_COLORS[g], 0.18))
+              color = (GROUP_COLORS[g], 0.15))
         band!(ax, df.horizon, df.ci_lo90_theta, df.ci_hi90_theta;
               color = (GROUP_COLORS[g], 0.30))
+        band!(ax, df.horizon, df.ci_lo68_theta, df.ci_hi68_theta;
+              color = (GROUP_COLORS[g], 0.50))
+        
         lines!(ax, df.horizon, df.theta;
                color = GROUP_COLORS[g], linewidth = 2)
         hlines!(ax, [0.0]; color = :black, linewidth = 0.8, linestyle = :dash)
@@ -100,14 +110,17 @@ function plot_theta_irf(irfs::Dict{Int, DataFrame}, pw_bh::DataFrame;
         # BH-significant points
         sig_pts = @subset(pw_bh, :occ_group .== g, :bh_reject .== true)
         if nrow(sig_pts) > 0
-            sig_vals = innerjoin(sig_pts, df, on = :horizon)
+            sig_vals = innerjoin(
+                    select(sig_pts, :horizon, :occ_group),
+                    select(df, :horizon, :theta),
+                    on = :horizon)
             scatter!(ax, sig_vals.horizon, sig_vals.theta;
                      color = GROUP_COLORS[g], marker = :star5, markersize = 8)
         end
     end
 
     Label(fig[3, 1:4],
-          "θ = differential effect relative to Managerial (Group 1). Bands: 90%/95% block-bootstrap CIs. ★ = BH-significant (q=0.05).",
+          "θ = differential effect relative to Managerial (Group 1). Bands: 68%/90%/95% block-bootstrap CIs. ★ = BH-significant (q=0.05).",
           fontsize = 9, tellwidth = false)
 
     save(output_path, fig)
