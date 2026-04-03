@@ -1,330 +1,153 @@
 # =============================================================================
-# 03_significance_tests.jl
-# Significance testing — fully bootstrap-based
+# 03_significance_tests_edu.jl
+# Bootstrap significance tests for LP impulse responses
+#   - Per-horizon pointwise p-values for each education group
+#   - Pairwise group difference tests at each horizon
+# =============================================================================
+
+include("02_lp_estimation_edu.jl")
+
+const EDU_GROUPS = [1, 2, 3]
+const PAIRS      = [(1,2), (1,3), (2,3)]
+
+# =============================================================================
+# 1. POINTWISE SIGNIFICANCE  — each group, each horizon
+# =============================================================================
+# H0: β_h = 0
+# p-value: bootstrap percentile, two-sided
+# p = 2 * min(P(β* > 0), P(β* < 0))
 #
-# All p-values are derived from the block bootstrap distributions stored in
-# boot_store (produced by 02_lp_estimation.jl). No normality assumption.
-#
-# Tests performed:
-#   1. Pointwise: fraction of bootstrap draws with opposite sign to β* (sign test)
-#      → used for IRF plots
-#   2. Joint Wald across horizons: bootstrap Wald statistic compared to its
-#      own bootstrap null distribution (Politis & Romano style)
-#   3. BH-FDR correction on joint p-values (short / long / full path)
-#   4. Persistence classification: Temporary / Persistent / Delayed / None
-# =============================================================================
+# Note: bootstrap draws are already centered around β̂, not zero.
+# For percentile p-value we use the shifted draws: β* − β̂
+# so that H0 is evaluated at zero.
 
-using CSV, DataFrames, DataFramesMeta
-using LinearAlgebra, Statistics, Distributions
-using Printf
+function pointwise_significance(all_results::Dict{Int, DataFrame},
+                                 all_boots::Dict{Int, Dict{Int, Matrix{Float64}}},
+                                 coef_names::Vector{Symbol};
+                                 h_max::Int = H_MAX)::DataFrame
 
-include("02_lp_estimation_edu.jl")   # boot_store, coef_names, EDU_LABELS, OUTPUT_DIR
+    β_idx = findfirst(==(:shock), coef_names)
+    β_idx === nothing && error(":shock not found in coef_names")
 
-# =============================================================================
-# 1. POINTWISE BOOTSTRAP p-VALUES
-# =============================================================================
-# Two-sided p-value for H0: θh_g = 0
-# Method: fraction of bootstrap draws that have the opposite sign to β̂,
-# multiplied by 2 (sign-flip fraction).  Equivalent to asking how often
-# the bootstrap distribution crosses zero on the opposite side.
-#
-# More precisely: p = 2 * min(P(β* ≤ 0 | β̂ > 0), P(β* ≥ 0 | β̂ < 0))
-# which is the bootstrap analogue of a two-sided p-value.
+    rows = NamedTuple[]
 
-function bootstrap_pvalue_pointwise(beta_hat::Float64,
-                                     boot_draws::Vector{Float64})::Float64
-    n = length(boot_draws)
-    n == 0 && return NaN
-    if beta_hat >= 0
-        p = 2 * mean(boot_draws .<= 0)
-    else
-        p = 2 * mean(boot_draws .>= 0)
-    end
-    return clamp(p, 0.0, 1.0)
-end
+    for g in EDU_GROUPS
+        results_g = all_results[g]
+        boots_g   = all_boots[g]
 
-# =============================================================================
-# 2. JOINT WALD BOOTSTRAP p-VALUE ACROSS A HORIZON RANGE
-# =============================================================================
-# H0: θh_g = 0 for all h in horizon_range
-#
-# Test statistic: W = θ̂' Σ̂^{-1} θ̂
-#   where Σ̂ is the bootstrap covariance matrix of (θ^{h1}, ..., θ^{hH}).
-#
-# Null distribution: computed by recentering bootstrap draws at β̂
-#   W*_b = (θ*_b − θ̂)' Σ̂^{-1} (θ*_b − θ̂)
-#
-# p-value: fraction of W*_b exceeding W.
-#
-# This correctly accounts for cross-horizon correlation in θh_g.
+        for h in 0:h_max
+            haskey(boots_g, h) || continue
 
-function bootstrap_wald_joint(theta_hat::Vector{Float64},
-                               boot_theta::Matrix{Float64})::NamedTuple
-    # boot_theta: (n_boot × H) matrix of bootstrap draws for θ at H horizons
-    n_boot, H = size(boot_theta)
-    H == 0 && return (W = NaN, p_value = NaN, H = 0)
+            sub = filter(r -> r.horizon == h && r.coef_name == :shock, results_g)
+            nrow(sub) == 0 && continue
 
-    # Bootstrap covariance of θ across horizons
-    Σ = cov(boot_theta)
+            β̂     = sub.beta[1]
+            draws  = boots_g[h][:, β_idx]
 
-    # Regularise: add small ridge to avoid singular matrix
-    Σ += 1e-10 * I
+            # Shift draws to be centered under H0: β = 0
+            shifted = draws .- mean(draws) 
 
-    Σ_inv = try
-        inv(Σ)
-    catch
-        @warn "Σ singular — using pseudo-inverse for Wald test"
-        pinv(Σ)
-    end
+            p_two  = 2 * min(mean(shifted .> β̂), mean(shifted .< β̂))
+            p_two  = clamp(p_two, 0.0, 1.0)
 
-    # Observed Wald statistic
-    W_obs = dot(theta_hat, Σ_inv * theta_hat)
-
-    # Recentered bootstrap Wald statistics (null distribution)
-    W_boot = Vector{Float64}(undef, n_boot)
-    for b in 1:n_boot
-        δ = boot_theta[b, :] .- theta_hat   # recentered at point estimate
-        W_boot[b] = dot(δ, Σ_inv * δ)
-    end
-
-    p = mean(W_boot .>= W_obs)
-
-    return (W = W_obs, p_value = p, H = H)
-end
-
-# =============================================================================
-# 3. EXTRACT BOOTSTRAP θ DRAWS OVER A HORIZON RANGE
-# =============================================================================
-function extract_boot_theta(boot_store::Dict{Int, Matrix{Float64}},
-                             coef_names::Vector{Symbol},
-                             g::Int,
-                             horizon_range::AbstractVector{Int})::Matrix{Float64}
-
-    col_name = Symbol("shock_x_edu", g)
-    ti       = findfirst(==(col_name), coef_names)
-    isnothing(ti) && return Matrix{Float64}(undef, 0, 0)
-
-    # Collect bootstrap draws for each horizon in range (only those available)
-    avail_h = [h for h in horizon_range if haskey(boot_store, h)]
-    isempty(avail_h) && return Matrix{Float64}(undef, 0, 0)
-
-    n_boot = size(first(values(boot_store)), 1)
-    mat    = Matrix{Float64}(undef, n_boot, length(avail_h))
-    for (col, h) in enumerate(avail_h)
-        mat[:, col] = boot_store[h][:, ti]
-    end
-    return mat
-end
-
-# =============================================================================
-# 4. BUILD FULL SIGNIFICANCE TABLE
-# =============================================================================
-function build_significance_table(irfs::Dict{Int, DataFrame},
-                                   boot_store::Dict{Int, Matrix{Float64}},
-                                   coef_names::Vector{Symbol};
-                                   short_range::UnitRange{Int} = 0:11,
-                                   long_range::UnitRange{Int}  = 24:36)::DataFrame
-
-    full_range = 0:H_MAX
-    rows = []
-
-    for g in 2:9   # group 1 is baseline, θ ≡ 0
-        !haskey(irfs, g) && continue
-        df = irfs[g]
-
-        # ── point estimates of θ over each range ────────────────────────────
-        get_theta = (rng) -> begin
-            sub = @subset(df, rng.start .<= :horizon .<= rng.stop)
-            nrow(sub) == 0 ? Float64[] : sub.theta
+            push!(rows, (
+                edu_group = g,
+                horizon   = h,
+                beta      = β̂,
+                boot_se   = std(draws),
+                p_value   = p_two,
+                sig_90    = p_two < 0.10,
+                sig_95    = p_two < 0.05,
+                sig_68    = p_two < 0.32,
+            ))
         end
-
-        θ_full  = get_theta(full_range.start:full_range.stop)
-        θ_short = get_theta(short_range)
-        θ_long  = get_theta(long_range)
-
-        # ── bootstrap draws for each range ──────────────────────────────────
-        B_full  = extract_boot_theta(boot_store, coef_names, g, collect(full_range))
-        B_short = extract_boot_theta(boot_store, coef_names, g, collect(short_range))
-        B_long  = extract_boot_theta(boot_store, coef_names, g, collect(long_range))
-
-        # ── joint Wald p-values ──────────────────────────────────────────────
-        w_full  = size(B_full,  2) > 0 ? bootstrap_wald_joint(θ_full,  B_full)  :
-                  (W = NaN, p_value = NaN, H = 0)
-        w_short = size(B_short, 2) > 0 ? bootstrap_wald_joint(θ_short, B_short) :
-                  (W = NaN, p_value = NaN, H = 0)
-        w_long  = size(B_long,  2) > 0 ? bootstrap_wald_joint(θ_long,  B_long)  :
-                  (W = NaN, p_value = NaN, H = 0)
-
-        # ── peak effect ──────────────────────────────────────────────────────
-        if !isempty(θ_full)
-            full_sub  = @subset(df, :horizon .<= H_MAX)
-            peak_idx  = argmax(abs.(full_sub.theta))
-            peak_h    = full_sub.horizon[peak_idx]
-            peak_θ    = full_sub.theta[peak_idx]
-            peak_bse  = full_sub.boot_se_theta[peak_idx]
-        else
-            peak_h = 0; peak_θ = NaN; peak_bse = NaN
-        end
-
-        push!(rows, (
-            edu_group    = g,
-            edu_label    = get(EDU_LABELS, g, "group_$g"),
-            # Full path Wald
-            W_full       = w_full.W,
-            H_full       = w_full.H,
-            p_full       = w_full.p_value,
-            # Short-run Wald (h = 0-11)
-            W_short      = w_short.W,
-            H_short      = w_short.H,
-            p_short      = w_short.p_value,
-            # Long-run Wald (h = 24-36) — persistence test
-            W_long       = w_long.W,
-            H_long       = w_long.H,
-            p_long       = w_long.p_value,
-            # Peak
-            peak_horizon = peak_h,
-            peak_theta   = peak_θ,
-            peak_boot_se = peak_bse,
-        ))
     end
 
     return DataFrame(rows)
 end
 
 # =============================================================================
-# 5. BENJAMINI-HOCHBERG (FDR) CORRECTION
+# 2. PAIRWISE GROUP DIFFERENCE TESTS  — each pair, each horizon
 # =============================================================================
-# Standard BH procedure. Applied separately to short / long / full p-values
-# across the 8 non-baseline groups.
+# H0: β_h^(g1) − β_h^(g2) = 0
+#
+# Since the two groups are estimated independently, their bootstrap draws
+# are independent — direct subtraction gives the correct null distribution.
+#
+# Shifted difference: d* = (β*_g1 − β*_g2) − (β̂_g1 − β̂_g2)
+# p-value: 2 * min(P(d* > d̂), P(d* < d̂))  where d̂ = β̂_g1 − β̂_g2
 
-function bh_correction(p_values::Vector{Float64};
-                         fdr_level::Float64 = 0.10)::Vector{Bool}
-    n      = length(p_values)
-    ord    = sortperm(p_values)
-    rank   = invperm(ord)
-    reject = falses(n)
-    # BH: reject if p_(k) ≤ (k/n) * q
-    for i in 1:n
-        k = rank[i]
-        p_values[i] <= (k / n) * fdr_level && (reject[i] = true)
-    end
-    return reject
-end
+function pairwise_difference_tests(all_results::Dict{Int, DataFrame},
+                                    all_boots::Dict{Int, Dict{Int, Matrix{Float64}}},
+                                    coef_names::Vector{Symbol};
+                                    h_max::Int = H_MAX)::DataFrame
 
-function apply_bh!(sig_table::DataFrame; fdr_level::Float64 = 0.10)::DataFrame
-    sig_table[!, :bh_reject_full]  = bh_correction(sig_table.p_full;  fdr_level)
-    sig_table[!, :bh_reject_short] = bh_correction(sig_table.p_short; fdr_level)
-    sig_table[!, :bh_reject_long]  = bh_correction(sig_table.p_long;  fdr_level)
-    return sig_table
-end
+    β_idx = findfirst(==(:shock), coef_names)
+    β_idx === nothing && error(":shock not found in coef_names")
 
-# =============================================================================
-# 6. PERSISTENCE CLASSIFICATION
-# =============================================================================
-# Persistent        : BH-reject short AND long
-# Temporary         : BH-reject short,  NOT long  → effect dies out
-# Delayed_persistent: NOT short,         BH-reject long → builds over time
-# Not_significant   : neither
+    rows = NamedTuple[]
 
-function classify_persistence!(sig_table::DataFrame)::DataFrame
-    sig_table[!, :persistence_type] = map(eachrow(sig_table)) do r
-        if r.bh_reject_short && r.bh_reject_long
-            "Persistent"
-        elseif r.bh_reject_short && !r.bh_reject_long
-            "Temporary"
-        elseif !r.bh_reject_short && r.bh_reject_long
-            "Delayed_persistent"
-        else
-            "Not_significant"
-        end
-    end
-    return sig_table
-end
+    for (g1, g2) in PAIRS
+        for h in 0:h_max
+            haskey(all_boots[g1], h) || continue
+            haskey(all_boots[g2], h) || continue
 
-# =============================================================================
-# 7. POINTWISE BOOTSTRAP p-VALUES  — for all (g, h) pairs
-# =============================================================================
-# Used to annotate IRF plots with significance stars (after BH correction).
+            sub1 = filter(r -> r.horizon == h && r.coef_name == :shock, all_results[g1])
+            sub2 = filter(r -> r.horizon == h && r.coef_name == :shock, all_results[g2])
+            (nrow(sub1) == 0 || nrow(sub2) == 0) && continue
 
-function build_pointwise_table(irfs::Dict{Int, DataFrame},
-                                boot_store::Dict{Int, Matrix{Float64}},
-                                coef_names::Vector{Symbol};
-                                fdr_level::Float64 = 0.05)::DataFrame
+            β̂1 = sub1.beta[1]
+            β̂2 = sub2.beta[1]
+            d̂  = β̂1 - β̂2
 
-    all_rows = []
+            draws1 = all_boots[g1][h][:, β_idx]
+            draws2 = all_boots[g2][h][:, β_idx]
 
-    for g in 2:9
-        !haskey(irfs, g) && continue
-        col_name = Symbol("shock_x_edu", g)
-        ti       = findfirst(==(col_name), coef_names)
-        isnothing(ti) && continue
+            # Match lengths in case n_valid differs slightly between groups
+            n      = min(length(draws1), length(draws2))
+            diff   = draws1[1:n] .- draws2[1:n]
 
-        df = irfs[g]
-        for row in eachrow(df)
-            h        = row.horizon
-            theta_h  = row.theta
-            !haskey(boot_store, h) && continue
+            # Shift to center under H0
+            shifted = diff .- mean(diff)
 
-            boot_θ = boot_store[h][:, ti]
-            p      = bootstrap_pvalue_pointwise(theta_h, boot_θ)
+            p_two = 2 * min(mean(shifted .> d̂), mean(shifted .< d̂))
+            p_two = clamp(p_two, 0.0, 1.0)
 
-            push!(all_rows, (
-                edu_group = g,
-                edu_label = get(EDU_LABELS, g, "group_$g"),
-                horizon   = h,
-                theta     = theta_h,
-                boot_se   = std(boot_θ),
-                p_value   = p,
+            push!(rows, (
+                g1      = g1,
+                g2      = g2,
+                horizon = h,
+                diff    = d̂,
+                boot_se = std(diff),
+                ci_lo95 = quantile(diff, 0.025),
+                ci_hi95 = quantile(diff, 0.975),
+                ci_lo90 = quantile(diff, 0.05),
+                ci_hi90 = quantile(diff, 0.95),
+                p_value = p_two,
+                sig_90  = p_two < 0.10,
+                sig_95  = p_two < 0.05,
+                sig_68  = p_two < 0.32,
             ))
         end
     end
 
-    pw = DataFrame(all_rows)
-    pw[!, :bh_reject] = bh_correction(pw.p_value; fdr_level = fdr_level)
-    return pw
+    return DataFrame(rows)
 end
 
 # =============================================================================
-# 8. MAIN
+# 3. MAIN
 # =============================================================================
-function run_significance_tests(irfs::Dict{Int, DataFrame},
-                                  boot_store::Dict{Int, Matrix{Float64}},
-                                  coef_names::Vector{Symbol})
+function run_significance_tests(all_results::Dict{Int, DataFrame},
+                                 all_boots::Dict{Int, Dict{Int, Matrix{Float64}}},
+                                 all_coefnames::Vector{Symbol})
 
-    println("\n=== Significance Tests (bootstrap-based) ===")
+    println("\nRunning pointwise significance tests...")
+    pw = pointwise_significance(all_results, all_boots, all_coefnames)
+    println("  Done. $(nrow(pw)) group-horizon cells.")
 
-    # Joint Wald tests
-    sig_table = build_significance_table(irfs, boot_store, coef_names;
-                    short_range = 0:11,
-                    long_range  = 24:36)
+    println("Running pairwise difference tests...")
+    pd = pairwise_difference_tests(all_results, all_boots, all_coefnames)
+    println("  Done. $(nrow(pd)) pair-horizon cells.")
 
-    # BH correction
-    apply_bh!(sig_table)
-
-    # Persistence classification
-    classify_persistence!(sig_table)
-
-    # Pointwise table for plots
-    pw_bh = build_pointwise_table(irfs, boot_store, coef_names)
-
-    # ── print summary ────────────────────────────────────────────────────────
-    println("\nEducational Group Summary:")
-    println("-"^90)
-    for row in eachrow(sig_table)
-        @printf("%-35s | Short p=%.3f (%s) | Long p=%.3f (%s) | %-20s\n",
-            row.edu_label,
-            row.p_short, row.bh_reject_short ? "sig*" : "ns  ",
-            row.p_long,  row.bh_reject_long  ? "sig*" : "ns  ",
-            row.persistence_type)
-    end
-    println("-"^90)
-    println("* = significant after BH FDR correction (q = 0.05)")
-    println("All p-values from block bootstrap (B = $N_BOOT, block = $BLOCK_SIZE months)")
-
-    # ── save ─────────────────────────────────────────────────────────────────
-    CSV.write(joinpath(OUTPUT_DIR, "significance_table.csv"), sig_table)
-    CSV.write(joinpath(OUTPUT_DIR, "pointwise_bh.csv"),       pw_bh)
-    println("\nSaved: significance_table.csv, pointwise_bh.csv")
-
-    return sig_table, pw_bh
+    return pw, pd
 end

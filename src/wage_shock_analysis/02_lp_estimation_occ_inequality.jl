@@ -11,7 +11,7 @@ using LinearAlgebra, Statistics
 using Dates, Random
 using Printf
 
-include("../data/data_prep_edu.jl")   # H_MAX, L_LAG, EDU_LABELS, OUTPUT_DIR
+include("../data/data_prep_occ_inequality.jl")   # H_MAX, L_LAG, OCC_LABELS, OUTPUT_DIR
 
 # Bootstrap settings
 const N_BOOT       = 500    # number of bootstrap replications
@@ -81,22 +81,22 @@ end
 # dep_var_{c,t} = log_rwage_{c,t+h} − log_rwage_{c,t−1}
 
 function build_lp_data(panel::DataFrame, h::Int)::Union{DataFrame, Nothing}
-    sort!(panel, [:edu_group, :date])
-    gdf    = groupby(panel, :edu_group)
+    sort!(panel, [:occ_group, :date])
+    gdf    = groupby(panel, :occ_group)
     chunks = DataFrame[]
 
     for g in gdf
         sub = copy(g)
         n   = nrow(sub)
 
-        lead_wage = Vector{Union{Float64,Missing}}(missing, n)
-        h < n && (lead_wage[1:n-h] = sub.log_rincome[h+1:n])
+        lead_ineq = Vector{Union{Float64,Missing}}(missing, n)
+        h < n && (lead_ineq[1:n-h] = sub.log_ratio_7525[h+1:n])
 
-        lag_wage = Vector{Union{Float64,Missing}}(missing, n)
-        lag_wage[2:n] = sub.log_rincome[1:n-1]
+        lag_ineq = Vector{Union{Float64,Missing}}(missing, n)
+        lag_ineq[2:n] = sub.log_ratio_7525[1:n-1]
 
-        sub[!, :dep_var]  = lead_wage .- lag_wage
-        sub[!, :lag_wage] = lag_wage
+        sub[!, :dep_var]  = lead_ineq .- lag_ineq
+        sub[!, :lag_ineq] = lag_ineq
         push!(chunks, sub)
     end
 
@@ -112,10 +112,15 @@ end
 # =============================================================================
 function build_col_lists!(df_h::DataFrame)
     inter_cols = Symbol[]
+    for g in 2:9
+        col = Symbol("shock_x_occ", g)
+        df_h[!, col] = df_h.shock .* Float64.(df_h.occ_group .== g)
+        push!(inter_cols, col)
+    end
     lag_cols   = [Symbol("shock_lag", l) for l in 1:L_LAG]
     macro_cols = [:log_oil_lag1, :ffr_lag1]
-    cell_cols  = [:log_rwage, :age_mean, :female_share, :married_share, :hours_mean, :unemp_rate]
-    x_cols     = vcat([:shock], lag_cols, macro_cols, cell_cols)
+    cell_cols  = [:log_rincome, :log_rwage, :age_mean, :female_share, :married_share, :hours_mean, :unemp_rate]
+    x_cols     = vcat([:shock], inter_cols, lag_cols, macro_cols, cell_cols)
     return x_cols, inter_cols
 end
 
@@ -124,7 +129,7 @@ end
 # =============================================================================
 function ols_within(df_h::DataFrame, y_col::Symbol,
                      x_cols::Vector{Symbol}, panel::DataFrame)
-    df_w = within_transform(df_h, [y_col], x_cols, :edu_group)
+    df_w = within_transform(df_h, [y_col], x_cols, :occ_group)
     df_w = dropmissing(df_w, vcat([y_col], x_cols))
     nrow(df_w) == 0 && return nothing
 
@@ -158,7 +163,6 @@ end
 # 03_significance_tests.jl can compute joint Wald p-values from the
 # bootstrap distribution without any normality assumption.
 
-
 function block_bootstrap_lp(panel::DataFrame, h::Int;
                               n_boot::Int     = N_BOOT,
                               block_size::Int = BLOCK_SIZE,
@@ -171,7 +175,7 @@ function block_bootstrap_lp(panel::DataFrame, h::Int;
     x_cols, _ = build_col_lists!(df_h)
     y_col     = :dep_var
 
-    df_w = within_transform(df_h, [y_col], x_cols, :edu_group)
+    df_w = within_transform(df_h, [y_col], x_cols, :occ_group)
     df_w = dropmissing(df_w, vcat([y_col], x_cols))
     nrow(df_w) == 0 && return nothing
 
@@ -261,6 +265,8 @@ end
         ci_hi95      = ci_hi[0.95],
         ci_lo90      = ci_lo[0.90],
         ci_hi90      = ci_hi[0.90],
+        ci_lo68      = ci_lo[0.68],
+        ci_hi68      = ci_hi[0.68],
         n_boot_valid = n_valid,
     )
 
@@ -309,74 +315,121 @@ end
 # =============================================================================
 # 8. EXTRACT IRF PATHS
 # =============================================================================
-# 分别做LP
+# Group 1 (Managerial, baseline):  absolute IRF = βh
+# Group g (2..9):
+#   beta_abs = βh + θh_g   (absolute effect vs t−1 level)
+#   theta    = θh_g        (differential vs baseline)
 #
 # Bootstrap CIs for beta_abs use (β_boot + θ_boot) directly,
 # correctly accounting for their covariance — no sum-of-SEs approximation.
 
 function extract_irf(results_df::DataFrame,
                       boot_store::Dict{Int, Matrix{Float64}},
-                      coef_names::Vector{Symbol})::DataFrame
+                      coef_names::Vector{Symbol})::Dict{Int, DataFrame}
 
+    irfs     = Dict{Int, DataFrame}()
     horizons = sort(unique(results_df.horizon))
 
     # Coefficient index positions (intercept = 1)
     β_idx = findfirst(==(:shock), coef_names)
-    β_idx === nothing && error(":shock not found in coef_names")
-    rows = NamedTuple[]
-for h in horizons
-        sub = filter(r -> r.horizon == h && r.coef_name == :shock, results_df)
+    θ_idx = Dict(g => findfirst(==(Symbol("shock_x_occ", g)), coef_names)
+                 for g in 2:9)
+
+    # ── Group 1: baseline ───────────────────────────────────────────────────
+    rows1 = []
+    for h in horizons
+        sub   = filter(r -> r.horizon == h && r.coef_name == :shock, results_df)
         nrow(sub) == 0 && continue
         β_h = sub.beta[1]
 
         if haskey(boot_store, h)
-            B = boot_store[h]
-            push!(rows, (
-                horizon  = h,
-                beta_abs = β_h,
-                boot_se  = std(B[:, β_idx]),
-                ci_lo95  = quantile(B[:, β_idx], 0.025),
-                ci_hi95  = quantile(B[:, β_idx], 0.975),
-                ci_lo90  = quantile(B[:, β_idx], 0.05),
-                ci_hi90  = quantile(B[:, β_idx], 0.95),
-                ci_lo68  = quantile(B[:, β_idx], 0.16),
-                ci_hi68  = quantile(B[:, β_idx], 0.84),
-            ))
+            bd = boot_store[h][:, β_idx]
+            push!(rows1, (horizon  = h,
+                          beta_abs = β_h,
+                          boot_se  = std(bd),
+                          ci_lo95  = quantile(bd, 0.025),
+                          ci_hi95  = quantile(bd, 0.975),
+                          ci_lo90  = quantile(bd, 0.05),
+                          ci_hi90  = quantile(bd, 0.95),
+                          ci_lo68  = quantile(bd, 0.16),
+                          ci_hi68  = quantile(bd, 0.84),
+                          theta            = 0.0,
+                          boot_se_theta    = NaN,
+                          ci_lo95_theta    = NaN,
+                          ci_hi95_theta    = NaN,
+                          ci_lo90_theta    = NaN,
+                          ci_hi90_theta    = NaN,
+                          ci_lo68_theta    = NaN,
+                          ci_hi68_theta    = NaN))
         end
     end
+    irfs[1] = DataFrame(rows1)
 
-    return DataFrame(rows)
+    # ── Groups 2-9 ──────────────────────────────────────────────────────────
+    for g in 2:9
+        ti = get(θ_idx, g, nothing)
+        isnothing(ti) && continue
+        rows_g = []
+
+        for h in horizons
+            β_sub = filter(r -> r.horizon == h && r.coef_name == :shock, results_df)
+            θ_sub = filter(r -> r.horizon == h && r.coef_name == Symbol("shock_x_occ", g), results_df)
+            (nrow(β_sub) == 0 || nrow(θ_sub) == 0) && continue
+
+            β_h   = β_sub.beta[1]
+            θ_h   = θ_sub.beta[1]
+            abs_h = β_h + θ_h
+
+            if haskey(boot_store, h)
+                B        = boot_store[h]
+                abs_boot = B[:, β_idx] .+ B[:, ti]
+                θ_boot   = B[:, ti]
+
+                push!(rows_g, (
+                    horizon          = h,
+                    beta_abs         = abs_h,
+                    boot_se          = std(abs_boot),
+                    ci_lo95          = quantile(abs_boot, 0.025),
+                    ci_hi95          = quantile(abs_boot, 0.975),
+                    ci_lo90          = quantile(abs_boot, 0.05),
+                    ci_hi90          = quantile(abs_boot, 0.95),
+                    ci_lo68          = quantile(abs_boot, 0.16),
+                    ci_hi68          = quantile(abs_boot, 0.84),
+                    theta            = θ_h,
+                    boot_se_theta    = std(θ_boot),
+                    ci_lo95_theta    = quantile(θ_boot, 0.025),
+                    ci_hi95_theta    = quantile(θ_boot, 0.975),
+                    ci_lo90_theta    = quantile(θ_boot, 0.05),
+                    ci_hi90_theta    = quantile(θ_boot, 0.95),
+                    ci_lo68_theta    = quantile(θ_boot, 0.16),
+                    ci_hi68_theta    = quantile(θ_boot, 0.84),
+                ))
+            end
+        end
+        irfs[g] = DataFrame(rows_g)
+    end
+
+    return irfs
 end
 
 # =============================================================================
 # 9. MAIN
 # =============================================================================
 function run_estimation(panel::DataFrame)
-    edu_groups = sort(unique(panel.edu_group))
-    
-    all_results  = Dict{Int, DataFrame}()
-    all_boots    = Dict{Int, Dict{Int, Matrix{Float64}}}()
-    all_coefnames = Symbol[]
-    
-    for g in edu_groups
-        println("\n=== Education group $g ===")
-        panel_g = filter(r -> r.edu_group == g, panel)
-        
-        results_g, boot_g, coef_names = run_full_lp(panel_g)
-        
-        all_results[g]   = results_g
-        all_boots[g]     = boot_g
-        all_coefnames    = coef_names
-        
-        CSV.write(joinpath(OUTPUT_DIR, "lp_coefficients_edu$(g).csv"), results_g)
+    results_df, boot_store, coef_names = run_full_lp(panel)
+
+    println(eltype(results_df.coef_name))
+    println(typeof(results_df.coef_name[1]))
+
+    CSV.write(joinpath(OUTPUT_DIR, "lp_coefficients.csv"), results_df)
+    println("Coefficients saved.")
+
+    irfs = extract_irf(results_df, boot_store, coef_names)
+    for (g, df) in irfs
+        label = get(OCC_LABELS, g, "group_$g")
+        CSV.write(joinpath(OUTPUT_DIR, "irf_group$(g)_$(label).csv"), df)
     end
-    
-    # 每组提取IRF
-    all_irfs = Dict{Int, DataFrame}()
-    for g in edu_groups
-        all_irfs[g] = extract_irf(all_results[g], all_boots[g], all_coefnames)
-        CSV.write(joinpath(OUTPUT_DIR, "irf_edu$(g).csv"), all_irfs[g])
-    end
-    
-    return all_results, all_boots, all_coefnames, all_irfs
+    println("IRF tables saved.")
+
+    return results_df, boot_store, coef_names, irfs
 end

@@ -1,6 +1,6 @@
 # =============================================================================
 # 01_data_prep.jl
-# Oil Supply News Shock × Educational Wage Heterogeneity
+# Oil Supply News Shock × Occupational Wage Heterogeneity
 # Step 1: Load all data, construct cell-level panel
 # =============================================================================
 
@@ -14,19 +14,19 @@ using Printf
 # 0. PATHS
 # =============================================================================
 const DATA_DIR   = joinpath(@__DIR__, "../..", "data")
-const OUTPUT_DIR = joinpath(@__DIR__, "../..", "result", "edu")
+const OUTPUT_DIR = joinpath(@__DIR__, "../..", "result", "occ", "inequality")
 mkpath(OUTPUT_DIR)
 
-const CPS_FILE_ID  = "1JDujw-vPETitUWDJRD0QaZhRW9W1sN5f"
-const CPS_SHA256   = "4BF0AC40C566954EDBDBEE6A1F657CE2A0EAEC71446D2B17B76E7853E1683C5F"
-const CPS_PATH     = joinpath(DATA_DIR, "cps_00015.dat")
+const CPS_FILE_ID  = "1X1x9XCU5LGaxcnKrzhQBEb4O165OW4D1"
+const CPS_SHA256   = "34C48660BDCDA4F2B6C22FB4D135D91CDCFBE137FF64D7100903E359C98B40B3"
+const CPS_PATH     = joinpath(DATA_DIR, "cps_00017.dat")
 
 # Sample period
 const DATE_START = Date(1983, 4, 1)
 const DATE_END   = Date(2025, 6, 1)
 
 # LP horizons
-const L_LAG = 4   # shock lags
+const L_LAG = 12   # shock lags
 
 # =============================================================================
 # 1. DOWNLOAD CPS (if needed)
@@ -89,19 +89,31 @@ function parse_yearmonth(raw)::Union{Date, Nothing}
 end
 
 # =============================================================================
-# 3. Education CLASSIFICATION
+# 3. OCCUPATION CLASSIFICATION
 # =============================================================================
-const EDU_LABELS = Dict(
-    1 => "High Edu",
-    2 => "Medium Edu",
-    3 => "Low Edu",
+const OCC_LABELS = Dict(
+    1 => "Managerial",
+    2 => "Professional_specialty",
+    3 => "High_tech",
+    4 => "Sales",
+    5 => "Administrative_support",
+    6 => "Service",
+    7 => "Farming_forestry_construction",
+    8 => "Precision_production_repair",
+    9 => "Machine_operators_transport",
 )
 
-function classify_educ(educ::Union{Integer,Missing})::Union{Int,Missing}
-    ismissing(educ) && return missing
-    (educ == 111 || educ in 123:125)                        && return 1
-    (educ in 80:81 || educ in 90:92 || educ in 90:91 || educ == 100 || educ == 110)  && return 2
-    educ in 02:73                                        && return 3
+function classify_occ1990(occ::Union{Integer,Missing})::Union{Int,Missing}
+    ismissing(occ) && return missing
+    occ in 3:37                                           && return 1
+    occ in 43:200                                         && return 2
+    occ in 203:235                                        && return 3
+    occ in 243:283                                        && return 4
+    occ in 303:389                                        && return 5
+    occ in 405:469                                        && return 6
+    (occ in 473:498 || occ in 558:599 || occ in 614:617) && return 7
+    (occ in 503:549 || occ in 628:699)                   && return 8
+    (occ in 703:799 || occ in 803:889)                   && return 9
     return missing
 end
 
@@ -136,7 +148,7 @@ end
 #     ind in 580:691 && return 8
 #     ind in 700:712 && return 9
 #     ind in 721:760 && return 10
-#     ind in 761:800 && return 11
+#     ind in 761:810 && return 11
 #     ind in 812:893 && return 12
 #     ind in 900:932 && return 13
 #     return missing
@@ -153,10 +165,12 @@ end
 #   SEX        23-23
 #   MARST      24-24
 #   EMPSTAT    25-26
-#   UHRSWORKT  27-29
-#   EDUC       30-32
-#   EARNWT     33-42  (4 implied decimals)
-#   EARNWEEK   43-50  (2 implied decimals)
+#   OCC1990    27-29
+#   IND1990    30-32
+#   CLASSWKR   33-34
+#   UHRSWORKT  35-37
+#   EARNWT     38-47  (4 implied decimals)
+#   EARNWEEK   48-55  (2 implied decimals)
 
 function parse_cps(path::String)::DataFrame
     println("Parsing CPS fixed-width file: $path")
@@ -173,8 +187,10 @@ function parse_cps(path::String)::DataFrame
     sex_v      = Vector{Int32}(undef, est_rows)
     marst_v    = Vector{Int32}(undef, est_rows)
     empstat_v  = Vector{Int32}(undef, est_rows)
+    occ1990_v  = Vector{Int32}(undef, est_rows)
+    classwkr_v  = Vector{Int32}(undef, est_rows)
+    # ind1990_v  = Vector{Int32}(undef, est_rows)
     uhrsworkt_v  = Vector{Float32}(undef, est_rows)
-    educ_v    = Vector{Int32}(undef, est_rows)
     earnwt_v   = Vector{Float32}(undef, est_rows)
     earnweek_v = Vector{Float32}(undef, est_rows)
 
@@ -196,16 +212,16 @@ function parse_cps(path::String)::DataFrame
             wtfinl_raw = tryparse(Float64, strip(@view line[7:20]))
             isnothing(wtfinl_raw) && continue
 
-            earnwt_raw = tryparse(Float64, strip(@view line[33:42]))
+            earnwt_raw = tryparse(Float64, strip(@view line[38:47]))
             isnothing(earnwt_raw) && continue
 
             # ── EARNWEEK：修复原始 bug（parse 遇空串崩溃 → tryparse + 空串检查）──
-            earnwk_str = strip(@view line[43:50])
+            earnwk_str = strip(@view line[48:55])
             isempty(earnwk_str) && continue
             earnwk_raw = tryparse(Float64, earnwk_str)
             isnothing(earnwk_raw) && continue
 
-            uhrsworkt_str = strip(@view line[27:29])
+            uhrsworkt_str = strip(@view line[35:37])
             isempty(uhrsworkt_str) && continue
             uhrsworkt_raw = tryparse(Float64, uhrsworkt_str)
             isnothing(uhrsworkt_raw) && continue
@@ -216,7 +232,7 @@ function parse_cps(path::String)::DataFrame
                 new_cap = round(Int, length(year_v) * 1.5)
                 foreach(v -> resize!(v, new_cap),
                     (year_v, month_v, wtfinl_v, age_v, sex_v, marst_v,
-                     empstat_v, uhrsworkt_v, educ_v, earnwt_v, earnweek_v))
+                     empstat_v, occ1990_v, uhrsworkt_v, earnwt_v, earnweek_v))
             end
 
             # ── 写入（剩余字段只在通过过滤后才解析）──
@@ -227,8 +243,10 @@ function parse_cps(path::String)::DataFrame
             sex_v[n]      = parse(Int32, @view line[23:23])
             marst_v[n]    = parse(Int32, @view line[24:24])
             empstat_v[n]  = parse(Int32, @view line[25:26])
+            occ1990_v[n]  = parse(Int32, @view line[27:29])
+            classwkr_v[n]  = parse(Int32, @view line[33:34])
+            # ind1990_v[n]  = parse(Int32, @view line[16:18])
             uhrsworkt_v[n]  = Float32(uhrsworkt_raw)
-            educ_v[n]     = parse(Int32, @view line[30:32])
             earnwt_v[n]   = Float32(earnwt_raw / 10_000.0)   # 4 implied decimals
             earnweek_v[n] = Float32(earnwk_raw / 100.0)      # 2 implied decimals
         end
@@ -243,8 +261,10 @@ function parse_cps(path::String)::DataFrame
         sex      = sex_v[1:n],
         marst    = marst_v[1:n],
         empstat  = empstat_v[1:n],
+        occ1990  = occ1990_v[1:n],
+        classwkr = classwkr_v[1:n],
+        # ind1990  = ind1990_v[1:n],
         uhrsworkt = uhrsworkt_v[1:n],
-        educ     = educ_v[1:n],
         earnwt   = earnwt_v[1:n],
         earnweek = earnweek_v[1:n],
     )
@@ -258,7 +278,7 @@ end
 # =============================================================================
 function clean_cps_labor(df::DataFrame)::DataFrame
     println("Cleaning CPS (labor sample)...")
- 
+
     # 6a. Employment: EMPSTAT 10=at work, 12=has job not at work last week
     df = @subset(df, :empstat .∈ Ref([10, 12, 20, 21, 22]))
 
@@ -267,13 +287,16 @@ function clean_cps_labor(df::DataFrame)::DataFrame
 
     # 6c. Valid weight
     df = @subset(df, :wtfinl .> 0)
+    
+    # 6d. Remove self-employed
+    df = @subset(df, :classwkr .∈ Ref([21, 22, 23, 24, 25, 27, 28]))
 
-    # 6e. Classify education
-    df[!, :edu_group] = map(classify_educ, df.educ)
+    # 6e. Classify occupation and industry
+    df[!, :occ_group] = map(classify_occ1990, df.occ1990)
 
     # Drop unclassified
-    df = @subset(df, .!ismissing.(:edu_group))
-    df[!, :edu_group] = convert(Vector{Int}, df.edu_group)
+    df = @subset(df, .!ismissing.(:occ_group))
+    df[!, :occ_group] = convert(Vector{Int}, df.occ_group)
     #df[!, :ind_group] = convert(Vector{Int}, df.ind_group)
 
     # 6f. Date variable（用整数列拼，不依赖字符串格式）
@@ -285,7 +308,7 @@ end
 
 function build_panel_unemp(cps::DataFrame)::DataFrame
 
-    gdf = groupby(cps, [:edu_group, :date, :year, :month])
+    gdf = groupby(cps, [:occ_group, :date, :year, :month])
 
     panel = combine(gdf) do sdf
         emp = sdf.empstat
@@ -299,7 +322,7 @@ function build_panel_unemp(cps::DataFrame)::DataFrame
 
     panel = @subset(panel, :pop_weight .>= 1000)
 
-    return sort(panel, [:edu_group, :date])
+    return sort(panel, [:occ_group, :date])
 end
 
 function clean_cps_earn(df::DataFrame)::DataFrame
@@ -312,33 +335,43 @@ function clean_cps_earn(df::DataFrame)::DataFrame
     df = @subset(df, 16 .<= :age .<= 64)
 
     # 6c. Valid earnings: EARNWEEK > 0, not topcoded
-    df = @subset(df, :earnweek .> 0, :earnweek .< 9999.0)
+    df = @subset(df, :earnweek .> 0, :earnweek .!= 9999.99)
 
-    # 6d. Remove topcoded earnings by year
-    function is_not_topcoded(earnweek::Float32, year::Integer)::Bool
-        if year <= 1988
-            return earnweek < 999.0
-        elseif year <= 1997
-            return earnweek < 1923.0
-        else  # year >= 1998
-            return earnweek < 2884.0
-        end
+    function topcode_limit(year::Integer)
+        year <= 1988 ? 999.0f0 :
+        year <= 1997 ? 1923.0f0 : 2884.0f0
     end
-    
-    df = @subset(df, is_not_topcoded.(:earnweek, :year))
 
-    # 6e. Valid weight
+    df = @transform(df, :earnweek = min.(:earnweek, topcode_limit.(:year)))
+
+    # function is_not_topcoded(earnweek::Float32, year::Integer)::Bool
+    #     if year <= 1988
+    #         return earnweek < 999.0
+    #     elseif year <= 1997
+    #         return earnweek < 1923.0
+    #     else  # year >= 1998
+    #         return earnweek < 2884.0
+    #     end
+    # end
+    
+    # df = @subset(df, is_not_topcoded.(:earnweek, :year))
+
+    # 6d. Valid weight
     df = @subset(df, :earnwt .> 0)
 
-    # 6f. Valid hours
+    # 6e. Valid hours
     df = @subset(df, 0 .< :uhrsworkt .<= 105)
 
-    # 6g. Classify education
-    df[!, :edu_group] = map(classify_educ, df.educ)
+    # 6f. Remove self-employed
+    df = @subset(df, :classwkr .∈ Ref([21, 22, 23, 24, 25, 27, 28]))
+
+    # 6g. Classify occupation and industry
+    df[!, :occ_group] = map(classify_occ1990, df.occ1990)
+    #df[!, :ind_group] = map(classify_ind1990, df.ind1990)
 
     # Drop unclassified
-    df = @subset(df, .!ismissing.(:edu_group))
-    df[!, :edu_group] = convert(Vector{Int}, df.edu_group)
+    df = @subset(df, .!ismissing.(:occ_group))
+    df[!, :occ_group] = convert(Vector{Int}, df.occ_group)
     #df[!, :ind_group] = convert(Vector{Int}, df.ind_group)
 
     # 6h. Demographic dummies
@@ -414,14 +447,35 @@ end
 # =============================================================================
 # 8. CONSTRUCT CELL-LEVEL PANEL
 # =============================================================================
+function weighted_quantile(x::AbstractVector, w::AbstractVector, q::Float64)::Float64
+    # 按 x 排序
+    idx    = sortperm(x)
+    xs, ws = x[idx], w[idx]
+    # 累积权重归一化
+    cumw   = cumsum(ws)
+    cumw ./= cumw[end]
+    # 找第一个超过 q 的位置
+    i = searchsortedfirst(cumw, q)
+    return xs[clamp(i, 1, length(xs))]
+end
+
 function build_panel_earn(cps::DataFrame)::DataFrame
-    gdf = groupby(cps, [:edu_group, :date, :year, :month])
+    # println("Building cell-level panel (OccGroup × IndGroup × YearMonth)...")
+
+    # cps[!, :cell_id] = string.(cps.occ_group, "_", cps.ind_group)
+
+    # gdf = groupby(cps, [:cell_id, :occ_group, :ind_group, :date, :year, :month])
+    gdf = groupby(cps, [:occ_group, :date, :year, :month])
 
     panel = combine(gdf,
         [:log_rincome, :earnwt] =>
             ((w, wt) -> sum(w .* wt) / sum(wt)) => :log_rincome,
         [:log_rwage, :earnwt] =>
             ((x, wt) -> sum(x .* wt) / sum(wt)) => :log_rwage,
+         [:log_rincome, :earnwt] =>
+            ((x, wt) -> weighted_quantile(x, wt, 0.25)) => :log_rincome_p25,
+        [:log_rincome, :earnwt] =>
+            ((x, wt) -> weighted_quantile(x, wt, 0.75)) => :log_rincome_p75,
         [:age, :earnwt] =>
             ((x, wt) -> sum(x .* wt) / sum(wt)) => :age_mean,
         [:female, :earnwt] =>
@@ -435,11 +489,13 @@ function build_panel_earn(cps::DataFrame)::DataFrame
 
     # Drop cells with fewer than 30 observations in a given month
     panel = @subset(panel, :n_obs .>= 30)
+    # inequality
+    panel[!, :log_ratio_7525] = panel.log_rincome_p75 .- panel.log_rincome_p25
 
     println("  Total observations: ", nrow(panel))
-    println("  Unique cells: ", length(unique(panel.edu_group)))
+    println("  Unique cells: ", length(unique(panel.occ_group)))
 
-    return sort(panel, [:edu_group, :date])
+    return sort(panel, [:occ_group, :date])
 end
 
 # =============================================================================
@@ -584,13 +640,14 @@ function main()
     # Build panel
     panel_labor = build_panel_unemp(cps_clean_labor)
     panel_earn = build_panel_earn(cps_clean_earn)
-    panel_all = leftjoin(panel_labor, panel_earn, on = [:edu_group, :date, :year, :month])
+    panel_all = leftjoin(panel_labor, panel_earn, on = [:occ_group, :date, :year, :month])
     describe(DataFrame(unemp_rate = panel_all.unemp_rate))
 
     # Load macro data
     shock_df  = load_oil_shock()
     oil_df    = load_oil_price()
     ffr_df    = load_fred("FEDFUNDS.csv",  :fedfunds)
+    # indpro_df = load_fred("INDPRO.csv",    :indpro)
     # unrate_df = load_fred("UNRATE.csv",    :unrate)
     # macro_df  = build_macro_panel(shock_df, oil_df, ffr_df, unrate_df)
     macro_df  = build_macro_panel(shock_df, oil_df, ffr_df)
@@ -598,7 +655,8 @@ function main()
     # Merge panel with macro
     panel = leftjoin(panel_all, macro_df, on = :date)
     panel = dropmissing(panel, [:shock, :log_oil_lag1, :ffr_lag1])
-    sort!(panel, [:edu_group, :date])
+    sort!(panel, [:occ_group, :date])
 
     return panel
 end
+
