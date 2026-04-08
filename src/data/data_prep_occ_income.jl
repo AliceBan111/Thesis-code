@@ -14,7 +14,8 @@ using Printf
 # 0. PATHS
 # =============================================================================
 const DATA_DIR   = joinpath(@__DIR__, "../..", "data")
-const OUTPUT_DIR = joinpath(@__DIR__, "../..", "result", "occ", "income")
+# const OUTPUT_DIR = joinpath(@__DIR__, "../..", "result", "occ", "income", "income_share")
+const OUTPUT_DIR = joinpath(@__DIR__, "../..", "result", "occ", "income", "income_mean")
 mkpath(OUTPUT_DIR)
 
 const CPS_FILE_ID  = "1X1x9XCU5LGaxcnKrzhQBEb4O165OW4D1"
@@ -232,7 +233,7 @@ function parse_cps(path::String)::DataFrame
                 new_cap = round(Int, length(year_v) * 1.5)
                 foreach(v -> resize!(v, new_cap),
                     (year_v, month_v, wtfinl_v, age_v, sex_v, marst_v,
-                     empstat_v, occ1990_v, uhrsworkt_v, earnwt_v, earnweek_v))
+                     empstat_v, occ1990_v, uhrsworkt_v, earnwt_v, earnweek_v, classwkr_v))
             end
 
             # ── 写入（剩余字段只在通过过滤后才解析）──
@@ -468,11 +469,25 @@ function build_panel_earn(cps::DataFrame)::DataFrame
             ((x, wt) -> sum(x .* wt) / sum(wt)) => :married_share,
         [:uhrsworkt, :earnwt] => 
             ((x, wt) -> sum(x .* wt) / sum(wt)) => :hours_mean,
+        [:earnweek, :earnwt] => 
+            ((e, wt) -> sum(e .* wt)) => :total_income_weekly,
+        [:earnwt]               => sum => :n_employed,
         :log_rincome => length => :n_obs,
     )
 
     # Drop cells with fewer than 30 observations in a given month
     panel = @subset(panel, :n_obs .>= 30)
+
+    monthly_agg = combine(groupby(panel, :date),
+        :total_income_weekly => sum => :total_income_all,
+        :n_employed          => sum => :total_emp_all
+    )
+
+    panel = leftjoin(panel, monthly_agg, on = :date)
+    panel[!, :income_share] = panel.total_income_weekly ./ panel.total_income_all
+    
+    check = combine(groupby(panel, :date), :income_share => sum => :sum_share)
+    @assert all(isapprox.(check.sum_share, 1.0, atol=1e-6)) 
 
     println("  Total observations: ", nrow(panel))
     println("  Unique cells: ", length(unique(panel.occ_group)))

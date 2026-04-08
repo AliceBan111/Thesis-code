@@ -32,13 +32,15 @@ function plot_absolute_irf(irfs::Dict{Int, DataFrame}, pw_bh::DataFrame;
         ax  = Axis(fig[row, col],
                    title  = get(OCC_LABELS, g, "Group $g"),
                    xlabel = "Horizon (months)",
-                   ylabel = "Log wage change",
+                #    ylabel = "Log wage change",
+                   ylabel = "log employment change",
                    titlesize = 11)
-        # ylims!(ax, -0.03, 0.02) # income
+        # ylims!(ax, -0.03, 0.02) # income, median
         # ylims!(ax, -0.01, 0.01) # hours
-        # ylims!(ax, -0.02, 0.02) # hourly_rate
+        # CairoMakie.ylims!(ax, -0.02, 0.02) # hourly_rate, emp
         # ylims!(ax, -0.03, 0.03) # inequality
         ylims!(ax, -0.015, 0.015) # unemployment
+        # ylims!(ax, -0.005, 0.005) # income share
 
         # 95% bootstrap CI band (outer, lighter)
         band!(ax, df.horizon, df.ci_lo95, df.ci_hi95;
@@ -64,7 +66,7 @@ function plot_absolute_irf(irfs::Dict{Int, DataFrame}, pw_bh::DataFrame;
                             select(df, :horizon, :beta_abs),
                             on = :horizon)
 
-                scatter!(ax, sig_vals.horizon, sig_vals.beta_abs;
+                CairoMakie.scatter!(ax, sig_vals.horizon, sig_vals.beta_abs;
                          color = GROUP_COLORS[idx], marker = :star5, markersize = 8)
             end
         end
@@ -100,11 +102,12 @@ function plot_theta_irf(irfs::Dict{Int, DataFrame}, pw_bh::DataFrame;
                    xlabel = "Horizon (months)",
                    ylabel = "θ (relative to Managerial)",
                    titlesize = 10)
-        # ylims!(ax, -0.03, 0.02)  # income
+        # ylims!(ax, -0.03, 0.02)  # income, median
         # ylims!(ax, -0.01, 0.01)  # hours
-        # ylims!(ax, -0.02, 0.02)  # hourly_rate
+        # CairoMakie.ylims!(ax, -0.02, 0.02)  # hourly_rate, emp
         # ylims!(ax, -0.03, 0.03) # inequality
         ylims!(ax, -0.015, 0.015) # unemployment
+        # ylims!(ax, -0.005, 0.005) # income share
 
         band!(ax, df.horizon, df.ci_lo95_theta, df.ci_hi95_theta;
               color = (GROUP_COLORS[g], 0.15))
@@ -124,7 +127,7 @@ function plot_theta_irf(irfs::Dict{Int, DataFrame}, pw_bh::DataFrame;
                     select(sig_pts, :horizon, :occ_group),
                     select(df, :horizon, :theta),
                     on = :horizon)
-            scatter!(ax, sig_vals.horizon, sig_vals.theta;
+            CairoMakie.scatter!(ax, sig_vals.horizon, sig_vals.theta;
                      color = GROUP_COLORS[g], marker = :star5, markersize = 8)
         end
     end

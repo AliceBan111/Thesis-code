@@ -14,7 +14,8 @@ using Printf
 # 0. PATHS
 # =============================================================================
 const DATA_DIR   = joinpath(@__DIR__, "../..", "data")
-const OUTPUT_DIR = joinpath(@__DIR__, "../..", "result", "occ", "unemploment")
+const OUTPUT_DIR = joinpath(@__DIR__, "../..", "result", "occ", "unemployment", "unemp")
+# const OUTPUT_DIR = joinpath(@__DIR__, "../..", "result", "occ", "unemployment", "emp")
 mkpath(OUTPUT_DIR)
 
 const CPS_FILE_ID  = "1X1x9XCU5LGaxcnKrzhQBEb4O165OW4D1"
@@ -232,7 +233,7 @@ function parse_cps(path::String)::DataFrame
                 new_cap = round(Int, length(year_v) * 1.5)
                 foreach(v -> resize!(v, new_cap),
                     (year_v, month_v, wtfinl_v, age_v, sex_v, marst_v,
-                     empstat_v, occ1990_v, uhrsworkt_v, earnwt_v, earnweek_v))
+                     empstat_v, occ1990_v, uhrsworkt_v, earnwt_v, earnweek_v, classwkr_v))
             end
 
             # ── 写入（剩余字段只在通过过滤后才解析）──
@@ -315,9 +316,11 @@ function build_panel_unemp(cps::DataFrame)::DataFrame
         wt  = sdf.wtfinl
         unemployed = sum((emp .∈ Ref((20,21,22))) .* wt)
         laborforce = sum((emp .∈ Ref((10,12,20,21,22))) .* wt)
+        employed   = sum((emp .∈ Ref((10,12))) .* wt)
         unemp_rate = laborforce == 0 ? missing : unemployed / laborforce
+        log_emp_count = employed > 0 ? log(employed) : missing
         pop_weight = sum(wt)
-        (; unemp_rate, pop_weight)
+        (; unemp_rate, log_emp_count, pop_weight)
     end
 
     panel = @subset(panel, :pop_weight .>= 1000)

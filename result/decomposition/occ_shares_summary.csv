@@ -1,0 +1,10 @@
+occ_group,occ_name,n_industries,top3_share,herfindahl
+1,Managerial,13,0.48158073,0.12151214
+2,Professional_specialty,13,0.8097304,0.46825445
+3,High_tech,13,0.69951475,0.29359627
+4,Sales,13,0.8319483,0.39279494
+5,Administrative_support,13,0.57872194,0.15354306
+6,Service,13,0.7703752,0.22636083
+7,Farming_forestry_construction,13,0.7525291,0.29487416
+8,Precision_production_repair,13,0.5595541,0.15667218
+9,Machine_operators_transport,13,0.62352455,0.17273355

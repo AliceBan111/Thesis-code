@@ -232,7 +232,7 @@ function parse_cps(path::String)::DataFrame
                 new_cap = round(Int, length(year_v) * 1.5)
                 foreach(v -> resize!(v, new_cap),
                     (year_v, month_v, wtfinl_v, age_v, sex_v, marst_v,
-                     empstat_v, occ1990_v, uhrsworkt_v, earnwt_v, earnweek_v))
+                     empstat_v, occ1990_v, uhrsworkt_v, earnwt_v, earnweek_v, classwkr_v))
             end
 
             # ── 写入（剩余字段只在通过过滤后才解析）──

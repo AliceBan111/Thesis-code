@@ -19,10 +19,13 @@ using LinearAlgebra, Statistics, Distributions
 using Printf
 
 # include("02_lp_estimation_occ_income.jl")
+# include("02_lp_estimation_occ_income_share.jl")
 # include("02_lp_estimation_occ_hours.jl")   # boot_store, coef_names, OCC_LABELS, OUTPUT_DIR
 # include("02_lp_estimation_occ_hourlyrate.jl")
 # include("02_lp_estimation_occ_inequality.jl")
 include("02_lp_estimation_occ_unemployment.jl")
+# include("02_lp_estimation_occ_median.jl")
+# include("02_lp_estimation_occ_emp.jl")
 
 # =============================================================================
 # 1. POINTWISE BOOTSTRAP p-VALUES
