@@ -1,6 +1,6 @@
 include("src/wage_shock_analysis/01_data_prep.jl")
 include("src/wage_shock_analysis/02_lp_occ_estimation.jl")
-include("src/wage_shock_analysis/03_significancr_tests.jl")
+include("src/wage_shock_analysis/03_significance_tests.jl")
 include("src/wage_shock_analysis/04_plots.jl")
 
 cd(@__DIR__)
