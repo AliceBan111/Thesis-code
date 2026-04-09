@@ -91,6 +91,34 @@ function load_oil_price_macro()::DataFrame
     return df
 end
 
+function load_cpi_macro()::DataFrame
+    println("Loading CPI from VARdata.xlsx...")
+    path = joinpath(DATA_DIR, "VARdata.xlsx")
+    xf   = XLSX.readxlsx(path)
+    sh   = xf["Monthly"]
+
+    dates    = Vector{Date}()
+    cpi_vals = Vector{Float64}()
+
+    for row in XLSX.eachrow(sh)
+        XLSX.row_number(row) == 1 && continue
+        d_raw = row[1]
+        c_raw = row[7]   # Column G = CPI
+        (ismissing(d_raw) || ismissing(c_raw)) && continue
+        d = parse_yearmonth(d_raw)
+        isnothing(d) && continue
+        push!(dates,    d)
+        push!(cpi_vals, Float64(c_raw))
+    end
+
+    df = DataFrame(date = dates, cpi = cpi_vals)
+    df[!, :log_cpi] = log.(df.cpi)
+    df = @subset(df, DATE_START .<= :date .<= DATE_END)
+    sort!(df, :date)
+    println("  CPI rows: ", nrow(df))
+    return df
+end
+
 function load_fred_macro(filename::String, colname::Symbol)::DataFrame
     println("Loading $filename...")
     path = joinpath(DATA_DIR, filename)
@@ -133,6 +161,7 @@ end
 function build_indpro_panel()::DataFrame
     println("Building INDPRO macro panel...")
 
+    cpi_df   = load_cpi_macro()
     indpro_df   = load_indpro_log()
     shock_df = load_oil_shock_macro()
     oil_df   = load_oil_price_macro()
@@ -141,6 +170,7 @@ function build_indpro_panel()::DataFrame
     panel = outerjoin(indpro_df, shock_df, on = :date)
     panel = outerjoin(panel, oil_df,    on = :date)
     panel = outerjoin(panel, ffr_df,    on = :date)
+    panel = outerjoin(panel, cpi_df,    on = :date)
     sort!(panel, :date)
 
     # Shock lags
@@ -152,8 +182,9 @@ function build_indpro_panel()::DataFrame
     panel[!, :log_oil_lag1] = lag_vec(panel.log_oil_price, 1)
     panel[!, :ffr_lag1]     = lag_vec(panel.fedfunds, 1)
     panel[!, :log_indpro_lag1] = lag_vec(panel.log_indpro, 1)
+    panel[!, :cpi_lag1] = lag_vec(panel.cpi, 1)
 
-    panel = dropmissing(panel, vcat([:log_indpro, :shock, :log_oil_lag1, :ffr_lag1],
+    panel = dropmissing(panel, vcat([:log_indpro, :shock, :log_oil_lag1, :ffr_lag1, :cpi_lag1],
                                     [Symbol("shock_lag", l) for l in 1:L_LAG]))
     sort!(panel, :date)
     println("  Panel rows: ", nrow(panel))
@@ -177,7 +208,7 @@ function build_lp_data_indpro(panel::DataFrame, h::Int)::Union{DataFrame, Nothin
     df[!, :dep_var]  = lead_indpro .- lag_indpro   # log_indpro_{t+h} - log_indpro_{t-1}
     df[!, :lag_indpro]  = lag_indpro
 
-    required = vcat([:dep_var, :shock, :log_oil_lag1, :ffr_lag1, :lag_indpro],
+    required = vcat([:dep_var, :shock, :log_oil_lag1, :ffr_lag1, :lag_indpro, :cpi_lag1],
                     [Symbol("shock_lag", l) for l in 1:L_LAG])
     df = dropmissing(df, required)
     return nrow(df) == 0 ? nothing : df

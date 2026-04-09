@@ -150,10 +150,12 @@ function build_cpi_panel()::DataFrame
     shock_df = load_oil_shock_macro()
     oil_df   = load_oil_price_macro()
     ffr_df   = load_fred_macro("FEDFUNDS.csv", :fedfunds)
+    indpro_df = load_fred_macro("INDPRO.csv", :indpro)
 
     panel = outerjoin(cpi_df, shock_df, on = :date)
     panel = outerjoin(panel, oil_df,    on = :date)
     panel = outerjoin(panel, ffr_df,    on = :date)
+    panel = outerjoin(panel, indpro_df,    on = :date)
     sort!(panel, :date)
 
     # Shock lags
@@ -164,9 +166,10 @@ function build_cpi_panel()::DataFrame
     # Control lags
     panel[!, :log_oil_lag1] = lag_vec(panel.log_oil_price, 1)
     panel[!, :ffr_lag1]     = lag_vec(panel.fedfunds, 1)
+    panel[!, :indpro_lag1]     = lag_vec(panel.indpro, 1)
     panel[!, :log_cpi_lag1] = lag_vec(panel.log_cpi, 1)
 
-    panel = dropmissing(panel, vcat([:log_cpi, :shock, :log_oil_lag1, :ffr_lag1],
+    panel = dropmissing(panel, vcat([:log_cpi, :shock, :log_oil_lag1, :ffr_lag1, :indpro_lag1],
                                     [Symbol("shock_lag", l) for l in 1:L_LAG]))
     sort!(panel, :date)
     println("  Panel rows: ", nrow(panel))
@@ -190,7 +193,7 @@ function build_lp_data_cpi(panel::DataFrame, h::Int)::Union{DataFrame, Nothing}
     df[!, :dep_var]  = lead_cpi .- lag_cpi   # log_cpi_{t+h} - log_cpi_{t-1}
     df[!, :lag_cpi]  = lag_cpi
 
-    required = vcat([:dep_var, :shock, :log_oil_lag1, :ffr_lag1, :lag_cpi],
+    required = vcat([:dep_var, :shock, :log_oil_lag1, :ffr_lag1, :lag_cpi, :indpro_lag1],
                     [Symbol("shock_lag", l) for l in 1:L_LAG])
     df = dropmissing(df, required)
     return nrow(df) == 0 ? nothing : df
