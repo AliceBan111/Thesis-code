@@ -12,7 +12,7 @@ using Printf
 # =============================================================================
 # 0. 全局配置与字典映射
 # =============================================================================
-# 默认 Bootstrap 与宏观配置 [cite: 2]
+# 默认 Bootstrap 与宏观配置 
 const N_BOOT       = 500    
 const BLOCK_SIZE   = 3      
 const BOOT_SEED    = 42
@@ -65,7 +65,7 @@ function driscoll_kraay_vcov(X::Matrix{Float64}, e::Vector{Float64},
     N_obs, K = size(X)
     T_vals   = sort(unique(t_idx))
     T        = length(T_vals)
-    m        = m == 0 ? floor(Int, T^(1/4)) : m # [cite: 4, 5]
+    m        = m == 0 ? floor(Int, T^(1/4)) : m 
     t_map    = Dict(v => i for (i, v) in enumerate(T_vals))
 
     H = zeros(K, T)
@@ -75,12 +75,12 @@ function driscoll_kraay_vcov(X::Matrix{Float64}, e::Vector{Float64},
     end
 
     S = zeros(K, K)
-    for t in 1:T; S .+= H[:, t] * H[:, t]'; end # [cite: 6]
+    for t in 1:T; S .+= H[:, t] * H[:, t]'; end 
     S ./= T
 
     for l in 1:m
         Γl = zeros(K, K)
-        for t in (l+1):T; Γl .+= H[:, t] * H[:, t-l]'; end # [cite: 7]
+        for t in (l+1):T; Γl .+= H[:, t] * H[:, t-l]'; end 
         Γl ./= T
         w   = 1.0 - l / (m + 1)
         S .+= w .* (Γl .+ Γl')
@@ -98,9 +98,9 @@ function within_transform(df::DataFrame,
                            xvars::Vector{Symbol},
                            id_var::Symbol)::DataFrame
     df_out = copy(df)
-    for var in vcat(yvars, xvars) # [cite: 8]
+    for var in vcat(yvars, xvars) 
         gdf   = groupby(df_out, id_var)
-        means = combine(gdf, var => mean => Symbol(var, "_mean")) # [cite: 9]
+        means = combine(gdf, var => mean => Symbol(var, "_mean")) 
         df_out = leftjoin(df_out, means, on = id_var)
         df_out[!, var] = df_out[!, var] .- df_out[!, Symbol(var, "_mean")]
         select!(df_out, Not(Symbol(var, "_mean")))
@@ -109,7 +109,7 @@ function within_transform(df::DataFrame,
 end
 
 # =============================================================================
-# 3. BUILD REGRESSION DATA FOR HORIZON h (已动态化)
+# 3. BUILD REGRESSION DATA FOR HORIZON h
 # =============================================================================
 function build_lp_data(panel::DataFrame, h::Int, y_var::Symbol)::Union{DataFrame, Nothing}
     sort!(panel, [:occ_group, :date])
@@ -120,11 +120,9 @@ function build_lp_data(panel::DataFrame, h::Int, y_var::Symbol)::Union{DataFrame
         sub = copy(g)
         n   = nrow(sub)
 
-        # 动态替换原本的 lead_hourlyrate
         lead_y = Vector{Union{Float64,Missing}}(missing, n)
         h < n && (lead_y[1:n-h] = sub[!, y_var][h+1:n])
 
-        # 动态替换原本的 lag_hourlyrate
         lag_y = Vector{Union{Float64,Missing}}(missing, n)
         lag_y[2:n] = sub[!, y_var][1:n-1]
 
@@ -138,11 +136,11 @@ function build_lp_data(panel::DataFrame, h::Int, y_var::Symbol)::Union{DataFrame
     required = vcat([:dep_var, :shock, :log_oil_lag1, :ffr_lag1, :cpi_lag1, :indpro_lag1],
                     [Symbol("shock_lag", l) for l in 1:L_LAG])
     df_h = dropmissing(df_h, required)
-    return nrow(df_h) == 0 ? nothing : df_h # [cite: 11, 12]
+    return nrow(df_h) == 0 ? nothing : df_h
 end
 
 # =============================================================================
-# 4. BUILD COLUMN LISTS (已动态化)
+# 4. BUILD COLUMN LISTS
 # =============================================================================
 function build_col_lists!(df_h::DataFrame, cell_cols::Vector{Symbol})
     inter_cols = Symbol[]
@@ -153,8 +151,7 @@ function build_col_lists!(df_h::DataFrame, cell_cols::Vector{Symbol})
     end
     lag_cols   = [Symbol("shock_lag", l) for l in 1:L_LAG]
     macro_cols = [:log_oil_lag1, :ffr_lag1, :cpi_lag1, :indpro_lag1]
-    
-    # 动态插入各个变体特有的 cell_cols 控制变量
+
     x_cols     = vcat([:shock], inter_cols, lag_cols, macro_cols, cell_cols) 
     return x_cols, inter_cols
 end
@@ -170,7 +167,7 @@ function ols_within(df_h::DataFrame, y_col::Symbol,
 
     Y = Float64.(df_w[!, y_col])
     X = hcat(ones(nrow(df_w)), Matrix{Float64}(df_w[!, x_cols]))
-    β = (X' * X) \ (X' * Y) # [cite: 14]
+    β = (X' * X) \ (X' * Y) 
     e = Y .- X * β
 
     all_dates = sort(unique(panel.date))
@@ -181,12 +178,12 @@ function ols_within(df_h::DataFrame, y_col::Symbol,
 end
 
 # =============================================================================
-# 6. BLOCK BOOTSTRAP (已动态化)
+# 6. BLOCK BOOTSTRAP (已动态化
 # =============================================================================
 function block_bootstrap_lp(panel::DataFrame, h::Int, y_var::Symbol, cell_cols::Vector{Symbol};
                               n_boot::Int     = N_BOOT,
                               block_size::Int = BLOCK_SIZE,
-                              rng::AbstractRNG = Random.default_rng()) # [cite: 18, 19]
+                              rng::AbstractRNG = Random.default_rng()) 
 @time begin
     # ── baseline data ───────────────────────────────────────────────────────
     df_h = build_lp_data(panel, h, y_var)
@@ -202,7 +199,7 @@ function block_bootstrap_lp(panel::DataFrame, h::Int, y_var::Symbol, cell_cols::
     Y_base = Float64.(df_w[!, y_col])
     X_base = hcat(ones(nrow(df_w)), Matrix{Float64}(df_w[!, x_cols]))
     β_base = (X_base' * X_base) \ (X_base' * Y_base)
-    e_base = Y_base .- X_base * β_base # [cite: 19, 20]
+    e_base = Y_base .- X_base * β_base
 
     K          = length(β_base)
     coef_names = vcat([:intercept], x_cols)
@@ -213,8 +210,8 @@ function block_bootstrap_lp(panel::DataFrame, h::Int, y_var::Symbol, cell_cols::
     n_blocks   = ceil(Int, T / block_size)
 
     date_to_rows = Dict{Date, Vector{Int}}()
-    for (i, row) in enumerate(eachrow(df_h))
-        push!(get!(date_to_rows, row.date, Int[]), i) # [cite: 21]
+    for (i, row) in enumerate(eachrow(df_w))
+        push!(get!(date_to_rows, row.date, Int[]), i) 
     end
 end
     # ── bootstrap replications ──────────────────────────────────────────────
@@ -225,14 +222,14 @@ end
         boot_dates = Date[]
         for s in starts
             for k in 0:(block_size - 1)
-                push!(boot_dates, all_dates[mod1(s + k, T)]) # [cite: 22]
+                push!(boot_dates, all_dates[mod1(s + k, T)]) 
             end
         end
         boot_dates = boot_dates[1:T]
 
         new_rows = Int[]
         for d in boot_dates
-            append!(new_rows, get(date_to_rows, d, Int[])) # [cite: 22, 23]
+            append!(new_rows, get(date_to_rows, d, Int[]))
         end
         isempty(new_rows) && continue
 
@@ -246,12 +243,12 @@ end
     end
 end
 @time begin
-    valid      = [!any(isnan.(boot_matrix[b, :])) for b in 1:n_boot] # [cite: 24]
+    valid      = [!any(isnan.(boot_matrix[b, :])) for b in 1:n_boot] 
     boot_valid = boot_matrix[valid, :]
     n_valid    = sum(valid)
 
     n_valid < 50 &&
-        @warn "h=$h: only $n_valid valid bootstrap draws; CIs may be unreliable." # [cite: 24, 25]
+        @warn "h=$h: only $n_valid valid bootstrap draws; CIs may be unreliable." 
 
     # ── percentile CIs ──────────────────────────────────────────────────────
     ci_lo = Dict{Float64, Vector{Float64}}()
@@ -264,14 +261,14 @@ end
 end
 
     all_dates_panel = sort(unique(panel.date))
-    date_map        = Dict(d => i for (i, d) in enumerate(all_dates_panel)) # [cite: 26]
+    date_map        = Dict(d => i for (i, d) in enumerate(all_dates_panel)) 
     t_idx           = [date_map[d] for d in df_w.date]
     V               = driscoll_kraay_vcov(X_base, e_base, t_idx; m = DK_BW)
     dk_se           = sqrt.(diag(V))
 
     # ── results DataFrame ───────────────────────────────────────────────────
     res = DataFrame(
-        horizon      = h, # [cite: 27]
+        horizon      = h, 
         coef_name    = coef_names,
         beta         = β_base,
         dk_se        = dk_se,
@@ -285,18 +282,18 @@ end
         n_boot_valid = n_valid,
     )
 
-    return (results = res, boot_draws = boot_valid, coef_names = coef_names) # [cite: 28]
+    return (results = res, boot_draws = boot_valid, coef_names = coef_names) 
 end
 
 # =============================================================================
-# 7. RUN FULL LP (已动态化)
+# 7. RUN FULL LP
 # =============================================================================
 function run_full_lp(panel::DataFrame, y_var::Symbol, cell_cols::Vector{Symbol};
                       h_max::Int      = H_MAX,
                       n_boot::Int     = N_BOOT,
                       block_size::Int = BLOCK_SIZE,
                       seed::Int       = BOOT_SEED
-                      )::Tuple{DataFrame, Dict{Int,Matrix{Float64}}, Vector{Symbol}} # [cite: 30, 31]
+                      )::Tuple{DataFrame, Dict{Int,Matrix{Float64}}, Vector{Symbol}}
 
     println("\nRunning LP  h = 0 … $h_max for Variable: $y_var")
     println("Block bootstrap: $n_boot replications, block size = $block_size months")
@@ -311,7 +308,7 @@ function run_full_lp(panel::DataFrame, y_var::Symbol, cell_cols::Vector{Symbol};
         @time out = block_bootstrap_lp(panel, h, y_var, cell_cols;
                                   n_boot     = n_boot,
                                   block_size = block_size,
-                                  rng        = rng) # [cite: 32, 33]
+                                  rng        = rng) 
         isnothing(out) && continue
         push!(all_res, out.results)
         boot_store[h]  = out.boot_draws
@@ -327,13 +324,13 @@ end
 # =============================================================================
 function extract_irf(results_df::DataFrame,
                       boot_store::Dict{Int, Matrix{Float64}},
-                      coef_names::Vector{Symbol})::Dict{Int, DataFrame} # [cite: 35]
+                      coef_names::Vector{Symbol})::Dict{Int, DataFrame} 
 
     irfs     = Dict{Int, DataFrame}()
     horizons = sort(unique(results_df.horizon))
 
     β_idx = findfirst(==(:shock), coef_names)
-    θ_idx = Dict(g => findfirst(==(Symbol("shock_x_occ", g)), coef_names) for g in 2:9) # [cite: 35, 36]
+    θ_idx = Dict(g => findfirst(==(Symbol("shock_x_occ", g)), coef_names) for g in 2:9)
 
     # ── Group 1: baseline ───────────────────────────────────────────────────
     rows1 = []
@@ -343,11 +340,11 @@ function extract_irf(results_df::DataFrame,
         β_h = sub.beta[1]
 
         if haskey(boot_store, h)
-            bd = boot_store[h][:, β_idx] # [cite: 37]
+            bd = boot_store[h][:, β_idx] 
             push!(rows1, (horizon  = h,
                           beta_abs = β_h,
                           boot_se  = std(bd),
-                          ci_lo95  = quantile(bd, 0.025), # [cite: 38]
+                          ci_lo95  = quantile(bd, 0.025),
                           ci_hi95  = quantile(bd, 0.975),
                           ci_lo90  = quantile(bd, 0.05),
                           ci_hi90  = quantile(bd, 0.95),
@@ -360,7 +357,7 @@ function extract_irf(results_df::DataFrame,
                           ci_lo90_theta    = NaN,
                           ci_hi90_theta    = NaN,
                           ci_lo68_theta    = NaN,
-                          ci_hi68_theta    = NaN)) # [cite: 40, 41, 42]
+                          ci_hi68_theta    = NaN)) 
         end
     end
     irfs[1] = DataFrame(rows1)
@@ -372,9 +369,9 @@ function extract_irf(results_df::DataFrame,
         rows_g = []
 
         for h in horizons
-            β_sub = filter(r -> r.horizon == h && r.coef_name == :shock, results_df) # [cite: 43]
+            β_sub = filter(r -> r.horizon == h && r.coef_name == :shock, results_df) 
             θ_sub = filter(r -> r.horizon == h && r.coef_name == Symbol("shock_x_occ", g), results_df)
-            (nrow(β_sub) == 0 || nrow(θ_sub) == 0) && continue # [cite: 44]
+            (nrow(β_sub) == 0 || nrow(θ_sub) == 0) && continue 
 
             β_h   = β_sub.beta[1]
             θ_h   = θ_sub.beta[1]
@@ -382,26 +379,26 @@ function extract_irf(results_df::DataFrame,
 
             if haskey(boot_store, h)
                 B        = boot_store[h]
-                abs_boot = B[:, β_idx] .+ B[:, ti] # [cite: 45]
+                abs_boot = B[:, β_idx] .+ B[:, ti] 
                 θ_boot   = B[:, ti]
 
                 push!(rows_g, (
                     horizon          = h,
-                    beta_abs         = abs_h, # [cite: 46]
+                    beta_abs         = abs_h, 
                     boot_se          = std(abs_boot),
                     ci_lo95          = quantile(abs_boot, 0.025),
-                    ci_hi95          = quantile(abs_boot, 0.975), # [cite: 47]
+                    ci_hi95          = quantile(abs_boot, 0.975), 
                     ci_lo90          = quantile(abs_boot, 0.05),
                     ci_hi90          = quantile(abs_boot, 0.95),
-                    ci_lo68          = quantile(abs_boot, 0.16), # [cite: 48]
+                    ci_lo68          = quantile(abs_boot, 0.16), 
                     ci_hi68          = quantile(abs_boot, 0.84),
                     theta            = θ_h,
                     boot_se_theta    = std(θ_boot),
-                    ci_lo95_theta    = quantile(θ_boot, 0.025), # [cite: 49]
+                    ci_lo95_theta    = quantile(θ_boot, 0.025), 
                     ci_hi95_theta    = quantile(θ_boot, 0.975),
                     ci_lo90_theta    = quantile(θ_boot, 0.05),
                     ci_hi90_theta    = quantile(θ_boot, 0.95),
-                    ci_lo68_theta    = quantile(θ_boot, 0.16), # [cite: 50]
+                    ci_lo68_theta    = quantile(θ_boot, 0.16), 
                     ci_hi68_theta    = quantile(θ_boot, 0.84),
                 ))
             end
@@ -409,7 +406,7 @@ function extract_irf(results_df::DataFrame,
         irfs[g] = DataFrame(rows_g)
     end
 
-    return irfs # [cite: 51]
+    return irfs 
 end
 
 # =============================================================================
