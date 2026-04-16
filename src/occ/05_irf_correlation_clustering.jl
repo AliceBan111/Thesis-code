@@ -260,6 +260,56 @@ function clustering_order_df(hc::Hclust, occupation_cols::Vector{Symbol})
     )
 end
 
+function analyze_extremes_and_turning_points(df::DataFrame, occupation_cols::Vector{Symbol}, output_path::String)
+    results = DataFrame(
+        outcome = String[],
+        occupation = String[],
+        max_abs_shock = Float64[],
+        max_shock_horizon = Int[],
+        turning_point_horizons = String[]
+    )
+
+    for sub_df in groupby(df, :outcome)
+        outcome_name = first(sub_df.outcome)
+        horizons = sub_df.horizon
+
+        for col in occupation_cols
+            y = sub_df[!, col]
+            
+            # 1. 极值定位：最大绝对值对应的 Horizon 及其大小
+            max_abs_idx = argmax(abs.(y))
+            max_abs_shock = y[max_abs_idx]
+            max_shock_horizon = horizons[max_abs_idx]
+
+            # 2. 拐点定位：寻找响应曲线中发生反转的 Horizon
+            # 通过判断前后一阶差分 (斜率) 是否改变符号来识别局部极值点
+            tps = Int[]
+            for i in 2:(length(y)-1)
+                dy_prev = y[i] - y[i-1]
+                dy_next = y[i+1] - y[i]
+                
+                # 若斜率发生正负反转且数值有明显波动，标记为拐点
+                if dy_prev * dy_next < 0
+                    push!(tps, horizons[i])
+                end
+            end
+            
+            # 将该职业的信息记录入表
+            push!(results, (
+                outcome_name,
+                get(OCCUPATION_LABELS, col, String(col)),
+                max_abs_shock,
+                max_shock_horizon,
+                isempty(tps) ? "None" : join(tps, ", ")
+            ))
+        end
+    end
+
+    CSV.write(output_path, results)
+    println("Saved Extremes & Turning Points to: $output_path")
+    return results
+end
+
 """
     main(; horizon_range=nothing, linkage=:average)
 
@@ -288,6 +338,9 @@ function main(; horizon_range=nothing, linkage::Symbol=:average)
 
     cluster_order_path = joinpath(OUTPUT_DIR, "occupation_irf_cluster_order.csv")
     CSV.write(cluster_order_path, clustering_order_df(hc, occupation_cols))
+
+    extremes_path = joinpath(OUTPUT_DIR, "occupation_irf_extremes_turning_points.csv")
+    analyze_extremes_and_turning_points(merged_df, occupation_cols, extremes_path)
 
     println("Saved merged IRF table to: $merged_path")
     println("Saved correlation matrix to: $corr_path")
