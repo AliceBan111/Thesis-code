@@ -54,20 +54,41 @@ end
 Stack the outcome-specific wide IRF tables into one long DataFrame with columns:
 `outcome`, `horizon`, and the 9 occupation series.
 """
-function build_merged_irf_df(; horizon_range=nothing)
+function build_standardized_merged_irf_df(; horizon_range=nothing)
     dfs = DataFrame[]
     occupation_cols = Symbol[]
 
     for (outcome, path) in IRF_FILES
         isfile(path) || error("IRF table not found: $path")
 
+        # load one outcome table
         df = load_irf_table(path, outcome; horizon_range=horizon_range)
+
+        # identify occupation columns
         current_occ_cols = names(df, Not([:outcome, :horizon]))
 
         if isempty(occupation_cols)
             occupation_cols = Symbol.(current_occ_cols)
         elseif Symbol.(current_occ_cols) != occupation_cols
-            error("Occupation columns in $path do not match the previous IRF tables.")
+            error("Occupation columns in $path do not match previous IRF tables.")
+        end
+
+        # --------------------------------------------------
+        # Z-score standardization within this outcome only
+        # each occupation column separately
+        # --------------------------------------------------
+        for col in occupation_cols
+            x = Float64.(df[!, col])
+
+            μ = mean(x)
+            σ = std(x)
+
+            # avoid divide-by-zero if constant series
+            if σ < 1e-12
+                df[!, col] .= 0.0
+            else
+                df[!, col] = (x .- μ) ./ σ
+            end
         end
 
         push!(dfs, df)
@@ -75,6 +96,7 @@ function build_merged_irf_df(; horizon_range=nothing)
 
     merged_df = vcat(dfs..., cols=:setequal)
     sort!(merged_df, [:outcome, :horizon])
+
     return merged_df, occupation_cols
 end
 
@@ -260,55 +282,55 @@ function clustering_order_df(hc::Hclust, occupation_cols::Vector{Symbol})
     )
 end
 
-function analyze_extremes_and_turning_points(df::DataFrame, occupation_cols::Vector{Symbol}, output_path::String)
-    results = DataFrame(
-        outcome = String[],
-        occupation = String[],
-        max_abs_shock = Float64[],
-        max_shock_horizon = Int[],
-        turning_point_horizons = String[]
-    )
+# function analyze_extremes_and_turning_points(df::DataFrame, occupation_cols::Vector{Symbol}, output_path::String)
+#     results = DataFrame(
+#         outcome = String[],
+#         occupation = String[],
+#         max_abs_shock = Float64[],
+#         max_shock_horizon = Int[],
+#         turning_point_horizons = String[]
+#     )
 
-    for sub_df in groupby(df, :outcome)
-        outcome_name = first(sub_df.outcome)
-        horizons = sub_df.horizon
+#     for sub_df in groupby(df, :outcome)
+#         outcome_name = first(sub_df.outcome)
+#         horizons = sub_df.horizon
 
-        for col in occupation_cols
-            y = sub_df[!, col]
+#         for col in occupation_cols
+#             y = sub_df[!, col]
             
-            # 1. 极值定位：最大绝对值对应的 Horizon 及其大小
-            max_abs_idx = argmax(abs.(y))
-            max_abs_shock = y[max_abs_idx]
-            max_shock_horizon = horizons[max_abs_idx]
+#             # 1. 极值定位：最大绝对值对应的 Horizon 及其大小
+#             max_abs_idx = argmax(abs.(y))
+#             max_abs_shock = y[max_abs_idx]
+#             max_shock_horizon = horizons[max_abs_idx]
 
-            # 2. 拐点定位：寻找响应曲线中发生反转的 Horizon
-            # 通过判断前后一阶差分 (斜率) 是否改变符号来识别局部极值点
-            tps = Int[]
-            for i in 2:(length(y)-1)
-                dy_prev = y[i] - y[i-1]
-                dy_next = y[i+1] - y[i]
+#             # 2. 拐点定位：寻找响应曲线中发生反转的 Horizon
+#             # 通过判断前后一阶差分 (斜率) 是否改变符号来识别局部极值点
+#             tps = Int[]
+#             for i in 2:(length(y)-1)
+#                 dy_prev = y[i] - y[i-1]
+#                 dy_next = y[i+1] - y[i]
                 
-                # 若斜率发生正负反转且数值有明显波动，标记为拐点
-                if dy_prev * dy_next < 0
-                    push!(tps, horizons[i])
-                end
-            end
+#                 # 若斜率发生正负反转且数值有明显波动，标记为拐点
+#                 if dy_prev * dy_next < 0
+#                     push!(tps, horizons[i])
+#                 end
+#             end
             
-            # 将该职业的信息记录入表
-            push!(results, (
-                outcome_name,
-                get(OCCUPATION_LABELS, col, String(col)),
-                max_abs_shock,
-                max_shock_horizon,
-                isempty(tps) ? "None" : join(tps, ", ")
-            ))
-        end
-    end
+#             # 将该职业的信息记录入表
+#             push!(results, (
+#                 outcome_name,
+#                 get(OCCUPATION_LABELS, col, String(col)),
+#                 max_abs_shock,
+#                 max_shock_horizon,
+#                 isempty(tps) ? "None" : join(tps, ", ")
+#             ))
+#         end
+#     end
 
-    CSV.write(output_path, results)
-    println("Saved Extremes & Turning Points to: $output_path")
-    return results
-end
+#     CSV.write(output_path, results)
+#     println("Saved Extremes & Turning Points to: $output_path")
+#     return results
+# end
 
 """
     main(; horizon_range=nothing, linkage=:average)
@@ -318,7 +340,7 @@ Run the full occupation IRF correlation and clustering analysis.
 function main(; horizon_range=nothing, linkage::Symbol=:average)
     mkpath(OUTPUT_DIR)
 
-    merged_df, occupation_cols = build_merged_irf_df(; horizon_range=horizon_range)
+    merged_df, occupation_cols = build_standardized_merged_irf_df(; horizon_range=horizon_range)
     merged_path = joinpath(OUTPUT_DIR, "merged_occ_irf_trajectories.csv")
     CSV.write(merged_path, merged_df)
 
@@ -339,8 +361,8 @@ function main(; horizon_range=nothing, linkage::Symbol=:average)
     cluster_order_path = joinpath(OUTPUT_DIR, "occupation_irf_cluster_order.csv")
     CSV.write(cluster_order_path, clustering_order_df(hc, occupation_cols))
 
-    extremes_path = joinpath(OUTPUT_DIR, "occupation_irf_extremes_turning_points.csv")
-    analyze_extremes_and_turning_points(merged_df, occupation_cols, extremes_path)
+    # extremes_path = joinpath(OUTPUT_DIR, "occupation_irf_extremes_turning_points.csv")
+    # analyze_extremes_and_turning_points(merged_df, occupation_cols, extremes_path)
 
     println("Saved merged IRF table to: $merged_path")
     println("Saved correlation matrix to: $corr_path")

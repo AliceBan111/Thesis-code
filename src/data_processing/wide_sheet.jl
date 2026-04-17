@@ -22,7 +22,7 @@ for var in variants
     end
     
     # Get all CSV files in the directory
-    files = filter(f -> endswith(f, ".csv") && startswith(f, "irf_"), readdir(folder_path))
+    files = filter(f -> endswith(f, ".csv") && startswith(f, "irf_group"), readdir(folder_path))
     
     if isempty(files)
         println("Warning: No CSV files found in $folder_path. Skipping...")
@@ -48,7 +48,7 @@ for var in variants
         df = CSV.read(file_path, DataFrame)
         
         # Keep only horizon and beta_abs, renaming beta_abs to the occupation name
-        temp_df = select(df, :horizon, :beta_abs => Symbol(occ_name))
+        temp_df = select(df, :horizon, :beta => Symbol(occ_name))
         
         # Left join to append the data by horizon
         wide_df = leftjoin(wide_df, temp_df, on = :horizon)

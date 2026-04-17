@@ -1,0 +1,41 @@
+element_name,correlation_coefficient,source_table
+Abilities_Perceptual Speed,0.6236551470000554,Abilities
+Abilities_Wrist-Finger Speed,0.606227233841215,Abilities
+Abilities_Selective Attention,0.5399884519645959,Abilities
+Abilities_Time Sharing,-0.5127752206536664,Abilities
+Abilities_Near Vision,0.4153355638753745,Abilities
+Abilities_Visual Color Discrimination,0.38403708407334436,Abilities
+Abilities_Response Orientation,0.35573556249837746,Abilities
+Abilities_Visualization,0.34250007075351563,Abilities
+Abilities_Speech Recognition,-0.33800924851385344,Abilities
+Abilities_Rate Control,0.3059000499921645,Abilities
+Knowledge_Foreign Language,-0.814849625815963,Knowledge
+Knowledge_Fine Arts,-0.7193707649815692,Knowledge
+Knowledge_Telecommunications,0.6033293587039722,Knowledge
+Knowledge_Communications and Media,-0.5517264733420996,Knowledge
+Knowledge_Sales and Marketing,-0.5301871207083785,Knowledge
+Knowledge_Sociology and Anthropology,-0.5064199560903687,Knowledge
+Knowledge_Food Production,-0.5063954725327817,Knowledge
+Knowledge_History and Archeology,-0.49714444884278786,Knowledge
+Knowledge_Therapy and Counseling,-0.49018076209362704,Knowledge
+Knowledge_Engineering and Technology,0.471932227704526,Knowledge
+Skills_Technology Design,0.696342119582652,Skills
+Skills_Programming,0.6627442655659256,Skills
+Skills_Troubleshooting,0.5722837699416791,Skills
+Skills_Quality Control Analysis,0.5471402195867747,Skills
+Skills_Operations Monitoring,0.5408046921888225,Skills
+Skills_Equipment Selection,0.5142668862822325,Skills
+Skills_Management of Financial Resources,-0.5059131203214615,Skills
+Skills_Operation and Control,0.4436558488771464,Skills
+Skills_Management of Material Resources,-0.43076512294935126,Skills
+Skills_Negotiation,-0.416428683392118,Skills
+WorkActivities_Performing for or Working Directly with the Public,-0.8163438642529535,WorkActivities
+WorkActivities_Selling or Influencing Others,-0.768545648902802,WorkActivities
+WorkActivities_Resolving Conflicts and Negotiating with Others,-0.6058728616526692,WorkActivities
+WorkActivities_Developing and Building Teams,-0.48444495639265023,WorkActivities
+WorkActivities_Staffing Organizational Units,-0.48400745387320493,WorkActivities
+WorkActivities_Establishing and Maintaining Interpersonal Relationships,-0.4794847474501129,WorkActivities
+"WorkActivities_Guiding, Directing, and Motivating Subordinates",-0.4742212640463676,WorkActivities
+WorkActivities_Coordinating the Work and Activities of Others,-0.4620823986668021,WorkActivities
+WorkActivities_Communicating with People Outside the Organization,-0.4228592526712444,WorkActivities
+WorkActivities_Monitoring and Controlling Resources,-0.39040192533668144,WorkActivities

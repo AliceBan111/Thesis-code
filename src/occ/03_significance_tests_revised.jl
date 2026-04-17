@@ -96,7 +96,7 @@ end
 # Pulls the column for group g's shock interaction (shock_g{g}) from the
 # boot_store for each requested horizon, returning an (n_boot x H) matrix.
 
-function extract_boot_beta(boot_store::Dict{Int, Matrix{Float64}},
+function extract_boot_beta(boot_store::Dict{Int, <:Any},
                             coef_names::Vector{Symbol},
                             g::Int,
                             horizon_range::AbstractVector{Int})::Matrix{Float64}
@@ -113,11 +113,12 @@ function extract_boot_beta(boot_store::Dict{Int, Matrix{Float64}},
     avail_h = [h for h in horizon_range if haskey(boot_store, h)]
     isempty(avail_h) && return Matrix{Float64}(undef, 0, 0)
 
-    n_boot = size(first(values(boot_store)), 1)
+    first_key = first(avail_h)
+    n_boot = size(boot_store[first_key].B, 1) 
     mat    = Matrix{Float64}(undef, n_boot, length(avail_h))
 
     for (col, h) in enumerate(avail_h)
-        mat[:, col] = boot_store[h][:, ti]
+        mat[:, col] = boot_store[h].B[:, ti]
     end
 
     return mat
@@ -132,7 +133,7 @@ end
 #   full   = h in 0:H_MAX
 
 function build_significance_table(irfs::Dict{Int, DataFrame},
-                                   boot_store::Dict{Int, Matrix{Float64}},
+                                   boot_store::Dict{Int, <:Any},
                                    coef_names::Vector{Symbol};
                                    short_range::UnitRange{Int} = 0:11,
                                    long_range::UnitRange{Int}  = 24:36)::DataFrame
@@ -179,7 +180,7 @@ function build_significance_table(irfs::Dict{Int, DataFrame},
             col_name = Symbol("shock_g$(g)")
             ti       = findfirst(==(col_name), coef_names)
             if !isnothing(ti) && haskey(boot_store, peak_h)
-                peak_boot_se = std(boot_store[peak_h][:, ti])
+                peak_boot_se = std(boot_store[peak_h].B[:, ti])
             else
                 peak_boot_se = NaN
             end
@@ -272,7 +273,7 @@ end
 # Iterates over all 9 groups and all available horizons.
 
 function build_pointwise_table(irfs::Dict{Int, DataFrame},
-                                boot_store::Dict{Int, Matrix{Float64}},
+                                boot_store::Dict{Int, <:Any},
                                 coef_names::Vector{Symbol};
                                 fdr_level::Float64 = 0.05)::DataFrame
 
@@ -292,7 +293,7 @@ function build_pointwise_table(irfs::Dict{Int, DataFrame},
             beta_h  = Float64(row.beta)
             !haskey(boot_store, h) && continue
 
-            boot_beta = Float64.(boot_store[h][:, ti])
+            boot_beta = Float64.(boot_store[h].B[:, ti])
             p         = bootstrap_pvalue_pointwise(beta_h, boot_beta)
             boot_se   = std(boot_beta)
 
@@ -316,7 +317,7 @@ end
 # 8. MAIN RUNNER
 # =============================================================================
 function run_significance_tests(irfs::Dict{Int, DataFrame},
-                                 boot_store::Dict{Int, Matrix{Float64}},
+                                 boot_store::Dict{Int, <:Any},
                                  coef_names::Vector{Symbol},
                                  variant::Symbol)
 

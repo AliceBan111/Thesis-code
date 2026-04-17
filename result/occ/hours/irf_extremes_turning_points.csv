@@ -1,0 +1,10 @@
+outcome,occ_group,occupation,max_abs_shock,max_shock_horizon,turning_point_horizons
+hours,1,Managerial,-0.002703563367036043,25,"2, 3, 6, 7, 8, 9, 11, 12, 20, 21, 28, 29"
+hours,2,Professional_specialty,-0.003878701980996644,32,"4, 5, 15, 16, 17, 18"
+hours,3,High_tech,-0.004383138381422267,25,"6, 7, 8, 9, 16, 18, 24, 25, 28, 29"
+hours,4,Sales,-0.006869502879779437,32,"4, 6"
+hours,5,Administrative_support,-0.003883888665926189,20,"15, 17, 28, 30, 34, 35"
+hours,6,Service,-0.005777009448301185,20,"1, 4, 6"
+hours,7,Farming_forestry_construction,-0.006091712276859405,18,None
+hours,8,Precision_production_repair,-0.0045978490209831946,33,"14, 15"
+hours,9,Machine_operators_transport,-0.003501946184820781,18,"10, 11, 14, 15, 23, 24"

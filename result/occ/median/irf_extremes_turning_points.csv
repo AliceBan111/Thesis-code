@@ -1,0 +1,10 @@
+outcome,occ_group,occupation,max_abs_shock,max_shock_horizon,turning_point_horizons
+median,1,Managerial,-0.00548797937614567,4,"5, 6, 8, 10, 11, 14, 29, 30, 32, 34"
+median,2,Professional_specialty,-0.005679983168029134,8,"1, 2, 3, 5, 6, 8, 26, 27, 34, 35"
+median,3,High_tech,-0.00870348392317548,33,"3, 4, 6, 8, 11, 12, 13, 14, 16, 18, 19, 20, 21, 22, 24, 25, 26, 27, 28, 29, 30, 31, 34, 35"
+median,4,Sales,-0.012768984871149237,34,"1, 5, 6, 7, 8, 11, 12, 16, 17, 18, 21, 24, 25, 36"
+median,5,Administrative_support,-0.004984197767554777,26,"8, 9, 18, 19, 20, 21, 22, 23, 28, 29, 31, 32, 33, 34"
+median,6,Service,-0.008708821482918848,35,"1, 2, 9, 10, 14, 28, 30, 33, 34"
+median,7,Farming_forestry_construction,-0.015604033202198388,35,"5, 9, 12, 13, 14, 15, 17, 19, 20, 21"
+median,8,Precision_production_repair,-0.011004863441161005,23,"18, 19, 22, 23, 30, 31"
+median,9,Machine_operators_transport,-0.005863845792287951,26,"1, 2, 5, 6, 8, 9, 11, 13, 16, 19, 20, 22, 23, 24, 26"

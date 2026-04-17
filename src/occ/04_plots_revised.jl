@@ -200,7 +200,33 @@ function plot_irf_grid(irfs::Dict{Int, DataFrame},
     n_cols   = 3
     n_rows   = ceil(Int, n_groups / n_cols)
 
-    fig = Figure(size = (380 * n_cols, 280 * n_rows + 60), fontsize = 12)
+    global_min = Inf
+    global_max = -Inf
+
+    sorted_groups = sort(collect(keys(irfs)))
+
+    for g in sorted_groups
+        df = irfs[g]
+        # 考虑 90% CI 的边界，确保带状图不会被切掉
+        mins = minimum([minimum(Float64.(df.ci_lo90)), minimum(Float64.(df.beta))])
+        maxs = maximum([maximum(Float64.(df.ci_hi90)), maximum(Float64.(df.beta))])
+        
+        if mins < global_min; global_min = mins; end
+        if maxs > global_max; global_max = maxs; end
+    end
+    
+    # 增加一点边距 (padding)，比如范围的 10%
+    range_span = global_max - global_min
+    padding = range_span * 0.1
+    y_low  = global_min - padding
+    y_high = global_max + padding
+    
+    # 如果范围太小（例如接近0），给一个默认范围防止报错
+    if range_span < 1e-5
+        y_low, y_high = -0.01, 0.01
+    end
+
+    fig = Figure(size = (1200, 900), fontsize = 12) 
 
     Label(fig[0, :],
           "Impulse Response Functions — $(string(variant)) (all 9 occupation groups)",
@@ -218,9 +244,15 @@ function plot_irf_grid(irfs::Dict{Int, DataFrame},
         ax = Axis(fig[row_pos, col_pos],
             title   = "($g) $label",
             xlabel  = "Horizon (months)",
-            ylabel  = "Beta",
+            ylabel  = idx % n_cols == 1 ? "Beta" : "",
             xticks  = 0:12:H_MAX,
         )
+        ylims!(ax, y_low, y_high)
+
+        if col_pos != 1
+            ax.yticklabelsvisible = false 
+            ax.ylabelvisible = false
+        end
 
         horizons = Float64.(df.horizon)
         betas    = Float64.(df.beta)
@@ -257,6 +289,9 @@ function plot_irf_grid(irfs::Dict{Int, DataFrame},
             end
         end
     end
+
+    colgap!(fig.layout, 15)
+    rowgap!(fig.layout, 15)
 
     save_png = joinpath(output_dir, "irf_grid_$(string(variant)).png")
     save_pdf = joinpath(output_dir, "irf_grid_$(string(variant)).pdf")

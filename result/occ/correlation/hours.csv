@@ -1,0 +1,41 @@
+element_name,correlation_coefficient,source_table
+Abilities_Category Flexibility,0.552346575644698,Abilities
+Abilities_Near Vision,0.5441135434082165,Abilities
+Abilities_Selective Attention,0.5072653046696648,Abilities
+Abilities_Time Sharing,-0.49056547876358203,Abilities
+Abilities_Written Comprehension,0.47163319801153974,Abilities
+Abilities_Information Ordering,0.4604119202586535,Abilities
+Abilities_Stamina,-0.45400043193677614,Abilities
+Abilities_Gross Body Coordination,-0.44777522073901793,Abilities
+Abilities_Gross Body Equilibrium,-0.4356687672123581,Abilities
+Abilities_Explosive Strength,-0.43134190774884057,Abilities
+Knowledge_Food Production,-0.7127578407161661,Knowledge
+Knowledge_Telecommunications,0.6437412819069672,Knowledge
+Knowledge_Computers and Electronics,0.6262057261957188,Knowledge
+Knowledge_Foreign Language,-0.6027733402344944,Knowledge
+Knowledge_Mathematics,0.4919109425402703,Knowledge
+Knowledge_Fine Arts,-0.47931442082374026,Knowledge
+Knowledge_Building and Construction,-0.3317701331590162,Knowledge
+Knowledge_English Language,0.31389431778616017,Knowledge
+Knowledge_Engineering and Technology,0.2882098387874422,Knowledge
+Knowledge_Education and Training,0.28794777409772615,Knowledge
+Skills_Programming,0.7608576156277365,Skills
+Skills_Technology Design,0.6554111295683195,Skills
+Skills_Reading Comprehension,0.44757961603647495,Skills
+Skills_Systems Analysis,0.43232878000033725,Skills
+Skills_Operations Analysis,0.417853144503906,Skills
+Skills_Systems Evaluation,0.4173441164859066,Skills
+Skills_Science,0.4081303562238845,Skills
+Skills_Mathematics,0.3684901250985391,Skills
+Skills_Critical Thinking,0.33948934671244746,Skills
+Skills_Writing,0.3390968611335139,Skills
+WorkActivities_Performing for or Working Directly with the Public,-0.6349551389668161,WorkActivities
+WorkActivities_Working with Computers,0.5515593327645448,WorkActivities
+WorkActivities_Processing Information,0.5370467064172035,WorkActivities
+WorkActivities_Documenting/Recording Information,0.5199101694354805,WorkActivities
+WorkActivities_Evaluating Information to Determine Compliance with Standards,0.4964894656221618,WorkActivities
+WorkActivities_Selling or Influencing Others,-0.4857401043258083,WorkActivities
+WorkActivities_Analyzing Data or Information,0.47745022636351625,WorkActivities
+WorkActivities_Making Decisions and Solving Problems,0.4231310874200832,WorkActivities
+WorkActivities_Updating and Using Relevant Knowledge,0.41178673541177885,WorkActivities
+WorkActivities_Performing General Physical Activities,-0.4099751997342456,WorkActivities

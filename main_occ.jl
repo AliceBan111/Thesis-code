@@ -14,5 +14,5 @@ for my_variant in variants_to_run
 
     sig_table, pw_table = run_significance_tests(irfs, boot_store, coef_names, my_variant)
 
-    run_visualization(irfs, my_variant, pw_table)
+    run_visualization(irfs, my_variant; pw_table = pw_table)
 end

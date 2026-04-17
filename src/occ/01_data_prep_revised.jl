@@ -246,6 +246,8 @@ function parse_cps(path::String)::DataFrame
                 end
             end
 
+            isnothing(hrs_raw) && continue
+
             n += 1
             if n > length(year_v)
                 new_cap = round(Int, length(year_v) * 1.5)

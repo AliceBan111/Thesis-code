@@ -27,16 +27,18 @@ using CSV, DataFrames, DataFramesMeta
 using LinearAlgebra, Statistics, StatsBase
 using Dates, Random
 using Printf
+using FixedEffectModels
+using CategoricalArrays
 
 # =============================================================================
 # GLOBALS  (only truly fixed constants stay here)
 # =============================================================================
-const N_BOOT     = 500
+const N_BOOT = 500
 const BLOCK_SIZE = 6
-const BOOT_SEED  = 42
-const H_MAX      = 36
-const L_LAG_MAX  = 24          # upper bound for BIC search
-const DK_BW      = 12
+const BOOT_SEED = 42
+const H_MAX = 36
+const L_LAG_MAX = 24          # upper bound for BIC search
+const DK_BW = 12
 
 const OCC_LABELS = Dict(
     1 => "Managerial",
@@ -53,11 +55,11 @@ const OCC_LABELS = Dict(
 # =============================================================================
 # OUTPUT DIRECTORY  [F1: was missing]
 # =============================================================================
-function get_output_dir(variant::Symbol)
-    dir = joinpath("output", string(variant))
-    mkpath(dir)
-    return dir
-end
+# function get_output_dir(variant::Symbol)
+#     dir = joinpath("output", string(variant))
+#     mkpath(dir)
+#     return dir
+# end
 
 # =============================================================================
 # VAR ESTIMATION HELPER  [F2: was missing, needed by ic_var]
@@ -68,13 +70,13 @@ end
 function var_estim(y::Matrix{Float64}, p::Int, intercept::Bool, trend::Bool)
 
     T, n_v = size(y)
-    T_eff  = T - p
+    T_eff = T - p
 
     # Build regressor matrix
     X_cols = Matrix{Float64}[]
 
     for lag in 1:p
-        push!(X_cols, y[p - lag + 1 : T - lag, :])
+        push!(X_cols, y[p-lag+1:T-lag, :])
     end
 
     if intercept
@@ -85,10 +87,10 @@ function var_estim(y::Matrix{Float64}, p::Int, intercept::Bool, trend::Bool)
         push!(X_cols, collect(1:T_eff) |> x -> reshape(x, :, 1) |> Float64)
     end
 
-    X   = hcat(X_cols...)
-    Y   = y[p+1:end, :]
+    X = hcat(X_cols...)
+    Y = y[p+1:end, :]
 
-    β     = (X'X) \ (X'Y)
+    β = (X'X) \ (X'Y)
     resid = Y - X * β
     Sigma = (resid' * resid) ./ T_eff
 
@@ -105,10 +107,10 @@ end
 # Output:
 #   p_select  selected lag length (Int)
 # =============================================================================
-function ic_var(y::Matrix{Float64}, p_max::Int, method::Int = 2)
+function ic_var(y::Matrix{Float64}, p_max::Int, method::Int=2)
 
     n_v = size(y, 2)
-    T   = size(y, 1)
+    T = size(y, 1)
     aic = zeros(p_max)
     bic = zeros(p_max)
 
@@ -116,11 +118,11 @@ function ic_var(y::Matrix{Float64}, p_max::Int, method::Int = 2)
 
     for p in 1:p_max
         _, _, Sigma = var_estim(y, p, true, false)
-        n_params    = n_v^2 * p + n_v          # VAR slope params + intercepts
-        log_det_S   = log(det(Sigma))
+        n_params = n_v^2 * p + n_v          # VAR slope params + intercepts
+        log_det_S = log(det(Sigma))
 
         bic[p] = log_det_S + n_params * log(T_eff) / T_eff
-        aic[p] = log_det_S + n_params * 2.0     / T_eff
+        aic[p] = log_det_S + n_params * 2.0 / T_eff
     end
 
     p_select = (method == 1) ? argmin(aic) : argmin(bic)
@@ -133,11 +135,11 @@ end
 # Selects lag length from the shock series in the panel using BIC on a
 # univariate AR (n_v = 1).  Called once per variant in run_lp.
 # =============================================================================
-function select_lag_length(panel::DataFrame; p_max::Int = L_LAG_MAX)
+function select_lag_length(panel::DataFrame; p_max::Int=L_LAG_MAX)
 
     shock_ts = sort(unique(panel[!, [:date, :shock]]), :date).shock
-    y        = reshape(Float64.(shock_ts), :, 1)
-    p        = ic_var(y, p_max, 2)           # BIC
+    y = reshape(Float64.(shock_ts), :, 1)
+    p = ic_var(y, p_max, 2)           # BIC
 
     @info "BIC-selected lag length: $p (searched 1:$p_max)"
     return p
@@ -150,53 +152,59 @@ function get_lp_specs(variant::Symbol)
 
     if variant == :hourly_rate
         return :log_rwage,
-               [:age_mean, :female_share]
+        [:age_mean, :female_share]
 
     elseif variant == :income
         return :log_rincome,
-               [:age_mean, :female_share]
+        [:age_mean, :female_share]
 
     elseif variant == :hours
         return :log_hours,
-               [:age_mean, :female_share]
+        [:age_mean, :female_share]
 
     elseif variant == :unemployment
         return :unemp_rate,
-               [:age_mean, :female_share]
+        [:age_mean, :female_share]
 
     elseif variant == :employment
         return :log_emp_count,
-               [:age_mean, :female_share]
+        [:age_mean, :female_share]
+
+    elseif variant == :inequality
+        return :log_ratio_7525, 
+        [:age_mean, :female_share]
+
+    elseif variant == :median
+        return :log_rincome_p50, 
+        [:age_mean, :female_share]
+
+    elseif variant == :income_share_var
+        return :income_share, 
+        [:age_mean, :female_share]
 
     else
         error("Unknown variant: $variant")
     end
 end
 
-# =============================================================================
-# DK VCOV
-# =============================================================================
 function driscoll_kraay_vcov(X::Matrix{Float64}, e::Vector{Float64},
-                              t_idx::Vector{Int}; m::Int = DK_BW)
+    t_idx::Vector{Int}; m::Int=DK_BW)
 
-    N, K  = size(X)
+    N, K = size(X)
     Tvals = sort(unique(t_idx))
-    T     = length(Tvals)
-    tmap  = Dict(v => i for (i, v) in enumerate(Tvals))
+    T = length(Tvals)
+    tmap = Dict(v => i for (i, v) in enumerate(Tvals))
 
     H = zeros(K, T)
-
     for n in 1:N
         ti = tmap[t_idx[n]]
         H[:, ti] .+= X[n, :] .* e[n]
     end
 
     S = zeros(K, K)
-
     for t in 1:T
         S .+= H[:, t] * H[:, t]'
     end
-
     S ./= T
 
     for l in 1:m
@@ -205,7 +213,7 @@ function driscoll_kraay_vcov(X::Matrix{Float64}, e::Vector{Float64},
             G .+= H[:, t] * H[:, t-l]'
         end
         G ./= T
-        w  = 1 - l / (m + 1)
+        w = 1 - l / (m + 1)
         S .+= w .* (G .+ G')
     end
 
@@ -213,32 +221,6 @@ function driscoll_kraay_vcov(X::Matrix{Float64}, e::Vector{Float64},
     return XX * (T * S) * XX
 end
 
-# =============================================================================
-# TWO-WAY WITHIN TRANSFORM  [F3: guards against leftjoin! column collisions]
-# =============================================================================
-function twoway_demean!(df::DataFrame, vars::Vector{Symbol})
-
-    # Remove any stale m1/m2 columns before joining
-    stale = intersect(Symbol.(names(df)), [:m1, :m2])
-    isempty(stale) || select!(df, Not(stale))
-
-    for v in vars
-
-        g1 = combine(groupby(df, :occ_group), v => mean => :m1)
-        leftjoin!(df, g1, on = :occ_group)
-
-        g2 = combine(groupby(df, :date), v => mean => :m2)
-        leftjoin!(df, g2, on = :date)
-
-        grand = mean(skipmissing(df[!, v]))
-
-        df[!, v] = df[!, v] .- df.m1 .- df.m2 .+ grand
-
-        select!(df, Not([:m1, :m2]))
-    end
-
-    return df
-end
 
 # =============================================================================
 # BUILD DATASET FOR HORIZON h  [F4: explicit sort by :date inside each group]
@@ -254,9 +236,9 @@ function build_lp_data(panel::DataFrame, h::Int, y_var::Symbol, l_lag::Int)
 
         # [F4] Sort by date within the group — groupby does not guarantee order
         sub = sort(copy(g), :date)
-        n   = nrow(sub)
+        n = nrow(sub)
 
-        leady = Vector{Union{Missing, Float64}}(missing, n)
+        leady = Vector{Union{Missing,Float64}}(missing, n)
 
         if h < n
             leady[1:n-h] = sub[!, y_var][1+h:n]
@@ -266,7 +248,7 @@ function build_lp_data(panel::DataFrame, h::Int, y_var::Symbol, l_lag::Int)
 
         for l in 1:l_lag
             col = Symbol("ylag$l")
-            lagged = Vector{Union{Missing, Float64}}(missing, n)
+            lagged = Vector{Union{Missing,Float64}}(missing, n)
             if l < n
                 lagged[l+1:n] = sub[!, y_var][1:n-l]
             end
@@ -276,12 +258,12 @@ function build_lp_data(panel::DataFrame, h::Int, y_var::Symbol, l_lag::Int)
         push!(out, sub)
     end
 
-    df  = vcat(out...)
-    req = [:dep_var, :shock, :log_oil_lag1, :ffr_lag1, :cpi_lag1, :indpro_lag1,:t10y3m_lag1]
+    df = vcat(out...)
+    req = [:dep_var, :shock, :log_oil_lag1, :ffr_lag1, :cpi_lag1, :indpro_lag1, :t10y3m_lag1]
 
     for l in 1:l_lag
         push!(req, Symbol("shock_lag$l"))
-        push!(req, Symbol("ylag$l")) 
+        push!(req, Symbol("ylag$l"))
     end
 
     return dropmissing(df, req)
@@ -293,7 +275,7 @@ end
 function build_cols!(df::DataFrame, controls::Vector{Symbol}, l_lag::Int)
 
     shock_cols = Symbol[]
-    groups     = sort(unique(df.occ_group))
+    groups = sort(unique(df.occ_group))
 
     for g in groups
         c = Symbol("shock_g$(g)")
@@ -302,108 +284,140 @@ function build_cols!(df::DataFrame, controls::Vector{Symbol}, l_lag::Int)
     end
 
     lag_cols = [Symbol("shock_lag$l") for l in 1:l_lag]
-    ylag_cols = [Symbol("ylag$l")      for l in 1:l_lag] 
-    mac_controls = [:log_oil_lag1, :ffr_lag1, :cpi_lag1, :indpro_lag1,:t10y3m_lag1]
-    xcols    = vcat(shock_cols, lag_cols, ylag_cols, mac_controls, controls)
+    ylag_cols = [Symbol("ylag$l") for l in 1:l_lag]
+    mac_controls = [:log_oil_lag1, :ffr_lag1, :cpi_lag1, :indpro_lag1, :t10y3m_lag1]
+    xcols = vcat(shock_cols, lag_cols, ylag_cols, mac_controls, controls)
 
     return xcols, shock_cols
+end
+
+# =============================================================================
+# FE ABSORPTION HELPER  [C1, C3]
+#
+# Calls reg() from FixedEffectModels.jl to partial out fe(occ_group) + fe(date)
+# from a single variable v, returning the within-transformed residual vector
+# M_D * v.
+#
+# By the Frisch-Waugh-Lovell theorem, OLS of (M_D*Y) on (M_D*X) recovers the
+# same coefficient vector β as the full two-way FE regression of Y on X.
+# reg() uses iterative LSMR, which converges to the exact within-transformation
+# regardless of panel balance — unlike the single-pass demean which required
+# the two FEs to be orthogonal.
+#
+# Note: df must already have :occ_group as categorical and :time_idx as Int.
+# =============================================================================
+function absorb_fe(df::DataFrame, v::Symbol)::Vector{Float64}
+    fml = term(v) ~ term(1) + fe(term(:occ_group))
+    fit = reg(df, fml, Vcov.simple(), save=:residuals)
+    return residuals(fit)
 end
 
 # =============================================================================
 # OLS CORE
 # =============================================================================
 function estimate_lp(df_h::DataFrame, panel::DataFrame,
-                     controls::Vector{Symbol}, h::Int, l_lag::Int)
-
-    xcols, _ = build_cols!(df_h, controls, l_lag)
-    vars      = vcat([:dep_var], xcols)
+    controls::Vector{Symbol}, h::Int, l_lag::Int)
 
     df = copy(df_h)
-    twoway_demean!(df, vars)
-    df = dropmissing(df, vars)
+    xcols, _ = build_cols!(df, controls, l_lag)
 
-    Y = Float64.(df.dep_var)
-    X = Matrix{Float64}(df[:, xcols])
-
-    β = (X'X) \ (X'Y)
-    e = Y - X * β
-
-    # Build t_idx from original date ordering in panel  [F5 applied here too]
+    # Integer time index for DK vcov
     all_dates = sort(unique(panel.date))
-    dmap      = Dict(d => i for (i, d) in enumerate(all_dates))
-    t_idx     = [dmap[d] for d in df.date]
+    dmap = Dict(d => i for (i, d) in enumerate(all_dates))
+    df[!, :time_idx] = Int.([dmap[d] for d in df.date])
 
-    V  = driscoll_kraay_vcov(X, e, t_idx; m = DK_BW)
+    # FixedEffectModels requires categorical FE identifiers
+    df[!, :occ_group] = categorical(df.occ_group)
+
+    # Drop any remaining missings before absorption
+    needed = vcat([:dep_var, :occ_group, :time_idx], xcols)
+    df = dropmissing(df, needed)
+
+    # FE absorption via reg() (LSMR, exact for unbalanced panels)
+    Y_tilde = absorb_fe(df, :dep_var)
+    X_tilde = hcat([absorb_fe(df, c) for c in xcols]...)
+
+    # OLS on within-transformed data
+    β = (X_tilde' * X_tilde) \ (X_tilde' * Y_tilde)
+    e = Y_tilde - X_tilde * β
+
+    # DK vcov on partialled-out X and residuals
+    t_idx = Int.(df.time_idx)
+    V = driscoll_kraay_vcov(X_tilde, e, t_idx; m=DK_BW)
     se = sqrt.(diag(V))
 
-    return (β = β, se = se, e = e, X = X, t_idx = t_idx,
-            names = xcols, df = df)
+    return (β=β, se=se, e=e, X=X_tilde,
+        t_idx=t_idx, df=df, names=xcols)
 end
+
 
 # =============================================================================
 # PERCENTILE-T BLOCK BOOTSTRAP  [F5: bootstrap t_idx uses date→index map]
 # =============================================================================
 function bootstrap_lp(df_h::DataFrame, panel::DataFrame,
-                       controls::Vector{Symbol}, h::Int, l_lag::Int;
-                       n_boot::Int      = N_BOOT,
-                       block_size::Int  = BLOCK_SIZE,
-                       rng              = MersenneTwister(BOOT_SEED))
+    controls::Vector{Symbol}, h::Int, l_lag::Int;
+    n_boot::Int=N_BOOT,
+    block_size::Int=BLOCK_SIZE,
+    rng=MersenneTwister(BOOT_SEED))
 
     base = estimate_lp(df_h, panel, controls, h, l_lag)
 
-    β0  = base.β
+    β0 = base.β
     se0 = base.se
-    K   = length(β0)
+    K = length(β0)
 
     all_dates = sort(unique(base.df.date))
-    T         = length(all_dates)
-    nb        = ceil(Int, T / block_size)
+    T = length(all_dates)
+    nb = ceil(Int, T / block_size)
 
-    # Map each date → its time index in the full panel (preserves structure)
-    dmap_full = Dict(d => i for (i, d) in enumerate(sort(unique(panel.date))))
-
-    # Map each date → row indices in the demeaned df
-    date_rows = Dict{Date, Vector{Int}}()
+    # Map date → row indices in the estimation-sample df
+    date_rows = Dict{Date,Vector{Int}}()
     for (i, r) in enumerate(eachrow(base.df))
         push!(get!(date_rows, r.date, Int[]), i)
     end
 
-    B     = fill(NaN, n_boot, K)
+    B = fill(NaN, n_boot, K)
     TSTAT = fill(NaN, n_boot, K)
 
     for b in 1:n_boot
 
         starts = rand(rng, 1:T, nb)
-
         dd = Date[]
         for s in starts
             for k in 0:block_size-1
                 push!(dd, all_dates[mod1(s + k, T)])
             end
         end
+        dd = dd[1:T]
 
-        dd   = dd[1:T]
         rows = Int[]
         for d in dd
             append!(rows, get(date_rows, d, Int[]))
         end
-
         isempty(rows) && continue
 
-        Yb = base.X[rows, :] * β0 .+ base.e[rows]
-        Xb = base.X[rows, :]
+        # Bootstrap DataFrame from original pre-absorption data
+        df_b = base.df[rows, :]
 
-        βb = (Xb'Xb) \ (Xb'Yb)
-        eb = Yb - Xb * βb
+        # Impose the null: replace dep_var with X*β0 + residual
+        df_b[!, :dep_var] = base.X[rows, :] * β0 .+ base.e[rows]
 
-        # [F5] Preserve original time index from panel date ordering
-        boot_dates = base.df.date[rows]
-        tb         = [dmap_full[d] for d in boot_dates]
+        # Re-absorb FEs on the bootstrap sample
+        Y_b = absorb_fe(df_b, :dep_var)
+        X_b = hcat([absorb_fe(df_b, c) for c in base.names]...)
 
-        Vb  = driscoll_kraay_vcov(Xb, eb, tb; m = DK_BW)
+        βb = try
+            (X_b' * X_b) \ (X_b' * Y_b)
+        catch
+            continue
+        end
+
+        eb = Y_b - X_b * βb
+        tb = Int.(df_b.time_idx)
+        Vb = driscoll_kraay_vcov(X_b, eb, tb; m=DK_BW)
         seb = sqrt.(diag(Vb))
 
-        B[b, :]     = βb
+        B[b, :] = βb
         TSTAT[b, :] = (βb .- β0) ./ seb
     end
 
@@ -414,13 +428,13 @@ end
 # ONE HORIZON
 # =============================================================================
 function run_h(panel::DataFrame, y_var::Symbol,
-               controls::Vector{Symbol}, h::Int, l_lag::Int)
+    controls::Vector{Symbol}, h::Int, l_lag::Int)
 
     df_h = build_lp_data(panel, h, y_var, l_lag)
 
     B, TSTAT, β0, se0, names = bootstrap_lp(df_h, panel, controls, h, l_lag)
 
-    K    = length(β0)
+    K = length(β0)
     rows = NamedTuple[]
 
     for k in 1:K
@@ -437,35 +451,51 @@ function run_h(panel::DataFrame, y_var::Symbol,
         ci_hi68 = β0[k] - se0[k] * q16
 
         push!(rows, (
-            horizon  = h,
-            coef_name = string(names[k]),
-            beta     = β0[k],
-            se       = se0[k],
-            ci_lo90  = ci_lo90,
-            ci_hi90  = ci_hi90,
-            ci_lo68  = ci_lo68,
-            ci_hi68  = ci_hi68
+            horizon=h,
+            coef_name=string(names[k]),
+            beta=β0[k],
+            se=se0[k],
+            ci_lo90=ci_lo90,
+            ci_hi90=ci_hi90,
+            ci_lo68=ci_lo68,
+            ci_hi68=ci_hi68
         ))
     end
 
-    return DataFrame(rows)
+    df_res = DataFrame(rows)
+
+    return df_res, B, TSTAT, names
 end
 
 # =============================================================================
 # FULL RUN
 # =============================================================================
 function run_full_lp(panel::DataFrame, y_var::Symbol,
-                     controls::Vector{Symbol}, l_lag::Int;
-                     h_max::Int = H_MAX)
+    controls::Vector{Symbol}, l_lag::Int;
+    h_max::Int=H_MAX)
 
-    out = DataFrame[]
+    out_dfs = DataFrame[]
 
+    boot_store = Dict{Int,NamedTuple}()
+
+    coef_names = Symbol[]
     for h in 0:h_max
         @info "  horizon h = $h / $h_max"
-        push!(out, run_h(panel, y_var, controls, h, l_lag))
+
+        df_res, B, TSTAT, names = run_h(panel, y_var, controls, h, l_lag)
+
+        push!(out_dfs, df_res)
+
+        boot_store[h] = (B=B, TSTAT=TSTAT, names=names)
+
+        if isempty(coef_names)
+            coef_names = names
+        end
     end
 
-    return vcat(out...)
+    results_df = vcat(out_dfs...)
+
+    return results_df, boot_store, coef_names
 end
 
 # =============================================================================
@@ -473,11 +503,11 @@ end
 # =============================================================================
 function extract_irf(df::DataFrame)
 
-    out = Dict{Int, DataFrame}()
+    out = Dict{Int,DataFrame}()
 
     for g in keys(OCC_LABELS)
         cname = "shock_g$(g)"
-        sub   = filter(r -> r.coef_name == cname, df)
+        sub = filter(r -> r.coef_name == cname, df)
         out[g] = sub[:, [:horizon, :beta, :ci_lo90, :ci_hi90, :ci_lo68, :ci_hi68]]
     end
 
@@ -492,15 +522,15 @@ function run_lp(panel::DataFrame, variant::Symbol)
     y_var, controls = get_lp_specs(variant)
 
     # [F6] Dynamic lag selection via BIC on the shock series
-    l_lag = select_lag_length(panel; p_max = L_LAG_MAX)
+    l_lag = select_lag_length(panel; p_max=L_LAG_MAX)
     @info "Running LP for $variant | outcome=$y_var | lags=$l_lag"
 
-    results = run_full_lp(panel, y_var, controls, l_lag)
+    results_df, boot_store, coef_names = run_full_lp(panel, y_var, controls, l_lag)
 
     output_dir = get_output_dir(variant)
-    CSV.write(joinpath(output_dir, "lp_coefficients.csv"), results)
+    CSV.write(joinpath(output_dir, "lp_coefficients.csv"), results_df)
 
-    irfs = extract_irf(results)
+    irfs = extract_irf(results_df)
 
     for (g, d) in irfs
         label = get(OCC_LABELS, g, "group_$g")
@@ -508,5 +538,5 @@ function run_lp(panel::DataFrame, variant::Symbol)
     end
 
     @info "Saved results to $output_dir"
-    return results, irfs
+    return results_df, boot_store, coef_names, irfs
 end

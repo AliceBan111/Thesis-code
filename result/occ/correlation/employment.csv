@@ -1,0 +1,41 @@
+element_name,correlation_coefficient,source_table
+Abilities_Time Sharing,-0.6430311927047617,Abilities
+Abilities_Number Facility,-0.5015338656153266,Abilities
+Abilities_Speed of Closure,-0.4963115876126763,Abilities
+Abilities_Flexibility of Closure,-0.4958092451141636,Abilities
+Abilities_Deductive Reasoning,-0.46809919683412005,Abilities
+Abilities_Speech Clarity,-0.44751842013970256,Abilities
+Abilities_Category Flexibility,-0.44035680993008836,Abilities
+Abilities_Inductive Reasoning,-0.4354279278212608,Abilities
+Abilities_Mathematical Reasoning,-0.42679033350400225,Abilities
+Abilities_Information Ordering,-0.42015130570034986,Abilities
+Knowledge_Law and Government,-0.5979711764552521,Knowledge
+Knowledge_Administration and Management,-0.5612227972026695,Knowledge
+Knowledge_Personnel and Human Resources,-0.5259703222508303,Knowledge
+Knowledge_Education and Training,-0.47516345123590437,Knowledge
+Knowledge_English Language,-0.47433132356499075,Knowledge
+Knowledge_Administrative,-0.47358458102568196,Knowledge
+Knowledge_Production and Processing,-0.47111540722050743,Knowledge
+Knowledge_Communications and Media,-0.45937206306460315,Knowledge
+Knowledge_Food Production,0.4411733294617886,Knowledge
+Knowledge_Mathematics,-0.4399111920506896,Knowledge
+Skills_Management of Material Resources,-0.628642073428676,Skills
+Skills_Management of Financial Resources,-0.5896137862067974,Skills
+Skills_Time Management,-0.5630226613542461,Skills
+Skills_Monitoring,-0.5109493057160513,Skills
+Skills_Complex Problem Solving,-0.5100656120061337,Skills
+Skills_Management of Personnel Resources,-0.4973800009556018,Skills
+Skills_Writing,-0.45670670639352134,Skills
+Skills_Judgment and Decision Making,-0.444072650050969,Skills
+Skills_Learning Strategies,-0.42249306779668444,Skills
+Skills_Speaking,-0.4218140474030378,Skills
+WorkActivities_Performing Administrative Activities,-0.6641060270575095,WorkActivities
+WorkActivities_Resolving Conflicts and Negotiating with Others,-0.6357417033333645,WorkActivities
+"WorkActivities_Guiding, Directing, and Motivating Subordinates",-0.6325582487837442,WorkActivities
+WorkActivities_Coaching and Developing Others,-0.6090011300123742,WorkActivities
+WorkActivities_Developing and Building Teams,-0.5915376571469088,WorkActivities
+"WorkActivities_Judging the Qualities of Objects, Services, or People",-0.5909756182976517,WorkActivities
+WorkActivities_Communicating with People Outside the Organization,-0.590550041536513,WorkActivities
+WorkActivities_Staffing Organizational Units,-0.5850162577352075,WorkActivities
+WorkActivities_Monitoring and Controlling Resources,-0.5814409389668089,WorkActivities
+"WorkActivities_Communicating with Supervisors, Peers, or Subordinates",-0.5778669943272683,WorkActivities

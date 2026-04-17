@@ -1,0 +1,10 @@
+outcome,occ_group,occupation,max_abs_shock,max_shock_horizon,turning_point_horizons
+employment,1,Managerial,-0.008864432151821179,32,None
+employment,2,Professional_specialty,-0.006310278427268066,30,"12, 13, 14, 20, 21"
+employment,3,High_tech,0.007071943369580894,6,"20, 21, 31, 33, 36"
+employment,4,Sales,-0.012147211119508285,24,None
+employment,5,Administrative_support,-0.00589683243584005,24,"1, 4, 6, 8, 9, 14"
+employment,6,Service,-0.007168379869671334,31,"1, 4, 10, 16, 17, 18, 35"
+employment,7,Farming_forestry_construction,-0.010048642901049412,19,"1, 7, 9, 16, 25, 29, 36"
+employment,8,Precision_production_repair,-0.008760323624860405,9,"1, 2, 14, 15"
+employment,9,Machine_operators_transport,-0.011948268542627451,32,"1, 3"
