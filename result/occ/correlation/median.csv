@@ -1,41 +1,41 @@
 element_name,correlation_coefficient,source_table
 Abilities_Selective Attention,0.8165485919955623,Abilities
 Abilities_Perceptual Speed,0.7981652468126993,Abilities
-Abilities_Visualization,0.7804610091009332,Abilities
+Abilities_Visualization,0.7804610091009333,Abilities
 Abilities_Information Ordering,0.7202584269578024,Abilities
 Abilities_Flexibility of Closure,0.7175893709447276,Abilities
-Abilities_Near Vision,0.680189187525062,Abilities
-Abilities_Category Flexibility,0.6118507301227659,Abilities
-Abilities_Speed of Closure,0.582857757877163,Abilities
+Abilities_Near Vision,0.6801891875250619,Abilities
+Abilities_Category Flexibility,0.611850730122766,Abilities
+Abilities_Speed of Closure,0.5828577578771632,Abilities
 Abilities_Inductive Reasoning,0.5541935364563272,Abilities
-Abilities_Mathematical Reasoning,0.5362236974027521,Abilities
+Abilities_Mathematical Reasoning,0.5362236974027523,Abilities
 Knowledge_Engineering and Technology,0.918359206527739,Knowledge
-Knowledge_Design,0.8379742174829694,Knowledge
-Knowledge_Mathematics,0.7421100766505042,Knowledge
-Knowledge_Telecommunications,0.6394447865821218,Knowledge
-Knowledge_Food Production,-0.6346354433948392,Knowledge
-Knowledge_Physics,0.626453666847174,Knowledge
-Knowledge_Foreign Language,-0.6120888274253667,Knowledge
-Knowledge_Mechanical,0.5546099220321743,Knowledge
+Knowledge_Design,0.8379742174829695,Knowledge
+Knowledge_Mathematics,0.7421100766505043,Knowledge
+Knowledge_Telecommunications,0.639444786582122,Knowledge
+Knowledge_Food Production,-0.6346354433948393,Knowledge
+Knowledge_Physics,0.6264536668471742,Knowledge
+Knowledge_Foreign Language,-0.6120888274253669,Knowledge
+Knowledge_Mechanical,0.5546099220321744,Knowledge
 Knowledge_Building and Construction,0.47143533159975765,Knowledge
-Knowledge_Chemistry,0.45476072951538604,Knowledge
-Skills_Installation,0.7588191199357701,Skills
-Skills_Technology Design,0.7413855443124111,Skills
-Skills_Quality Control Analysis,0.7193728283892512,Skills
-Skills_Mathematics,0.6855769718344297,Skills
+Knowledge_Chemistry,0.4547607295153861,Knowledge
+Skills_Installation,0.7588191199357702,Skills
+Skills_Technology Design,0.741385544312411,Skills
+Skills_Quality Control Analysis,0.7193728283892513,Skills
+Skills_Mathematics,0.6855769718344296,Skills
 Skills_Operations Analysis,0.6820425649320143,Skills
 Skills_Equipment Selection,0.6679586443981478,Skills
-Skills_Troubleshooting,0.6335690439353281,Skills
-Skills_Systems Analysis,0.6284910259789943,Skills
-Skills_Science,0.6070754151843692,Skills
+Skills_Troubleshooting,0.6335690439353283,Skills
+Skills_Systems Analysis,0.6284910259789944,Skills
+Skills_Science,0.6070754151843694,Skills
 Skills_Systems Evaluation,0.6019490120141352,Skills
-"WorkActivities_Monitoring Processes, Materials, or Surroundings",0.8424657648480186,WorkActivities
-"WorkActivities_Drafting, Laying Out, and Specifying Technical Devices, Parts, and Equipment",0.739607583738012,WorkActivities
-"WorkActivities_Estimating the Quantifiable Characteristics of Products, Events, or Information",0.71290861548403,WorkActivities
-WorkActivities_Updating and Using Relevant Knowledge,0.7040114917340662,WorkActivities
+"WorkActivities_Monitoring Processes, Materials, or Surroundings",0.8424657648480187,WorkActivities
+"WorkActivities_Drafting, Laying Out, and Specifying Technical Devices, Parts, and Equipment",0.7396075837380119,WorkActivities
+"WorkActivities_Estimating the Quantifiable Characteristics of Products, Events, or Information",0.7129086154840301,WorkActivities
+WorkActivities_Updating and Using Relevant Knowledge,0.7040114917340661,WorkActivities
 WorkActivities_Performing for or Working Directly with the Public,-0.6801324130865484,WorkActivities
 WorkActivities_Thinking Creatively,0.6697544339272894,WorkActivities
-WorkActivities_Evaluating Information to Determine Compliance with Standards,0.6455959270217336,WorkActivities
+WorkActivities_Evaluating Information to Determine Compliance with Standards,0.6455959270217339,WorkActivities
 WorkActivities_Making Decisions and Solving Problems,0.6060169448420161,WorkActivities
 "WorkActivities_Organizing, Planning, and Prioritizing Work",0.5772267781827471,WorkActivities
 WorkActivities_Documenting/Recording Information,0.5569903975931255,WorkActivities

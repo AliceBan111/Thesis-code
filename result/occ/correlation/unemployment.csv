@@ -1,41 +1,41 @@
 element_name,correlation_coefficient,source_table
-Abilities_Near Vision,0.8846788513252002,Abilities
-Abilities_Information Ordering,0.851094172406207,Abilities
-Abilities_Selective Attention,0.8375181318489794,Abilities
+Abilities_Near Vision,0.8846788513252001,Abilities
+Abilities_Information Ordering,0.8510941724062071,Abilities
+Abilities_Selective Attention,0.8375181318489796,Abilities
 Abilities_Category Flexibility,0.8093181427873908,Abilities
 Abilities_Flexibility of Closure,0.782944556345503,Abilities
 Abilities_Inductive Reasoning,0.7395535497736258,Abilities
-Abilities_Deductive Reasoning,0.7292471325517913,Abilities
-Abilities_Perceptual Speed,0.7278852749566324,Abilities
-Abilities_Mathematical Reasoning,0.7245194302891826,Abilities
-Abilities_Speed of Closure,0.6913605075909418,Abilities
-Knowledge_Mathematics,0.8542225415893723,Knowledge
+Abilities_Deductive Reasoning,0.7292471325517912,Abilities
+Abilities_Perceptual Speed,0.7278852749566322,Abilities
+Abilities_Mathematical Reasoning,0.7245194302891825,Abilities
+Abilities_Speed of Closure,0.6913605075909419,Abilities
+Knowledge_Mathematics,0.8542225415893722,Knowledge
 Knowledge_Food Production,-0.8021309416927682,Knowledge
 Knowledge_Telecommunications,0.7120375662895141,Knowledge
-Knowledge_Engineering and Technology,0.7112068617949691,Knowledge
+Knowledge_Engineering and Technology,0.7112068617949692,Knowledge
 Knowledge_Education and Training,0.6665689040938725,Knowledge
-Knowledge_Computers and Electronics,0.623695116658273,Knowledge
-Knowledge_Foreign Language,-0.5955840063874417,Knowledge
-Knowledge_Design,0.5696919518228287,Knowledge
+Knowledge_Computers and Electronics,0.6236951166582732,Knowledge
+Knowledge_Foreign Language,-0.5955840063874418,Knowledge
+Knowledge_Design,0.5696919518228288,Knowledge
 Knowledge_Personnel and Human Resources,0.4922032833877608,Knowledge
-Knowledge_English Language,0.4742376655706155,Knowledge
-Skills_Operations Analysis,0.8140195838796389,Skills
-Skills_Mathematics,0.8068130441467571,Skills
-Skills_Systems Analysis,0.7963101281762648,Skills
-Skills_Systems Evaluation,0.7571129511413841,Skills
-Skills_Complex Problem Solving,0.7454921450002999,Skills
-Skills_Programming,0.6891804961168567,Skills
-Skills_Critical Thinking,0.6753984533670714,Skills
+Knowledge_English Language,0.4742376655706156,Knowledge
+Skills_Operations Analysis,0.8140195838796392,Skills
+Skills_Mathematics,0.8068130441467573,Skills
+Skills_Systems Analysis,0.796310128176265,Skills
+Skills_Systems Evaluation,0.7571129511413843,Skills
+Skills_Complex Problem Solving,0.7454921450003,Skills
+Skills_Programming,0.6891804961168568,Skills
+Skills_Critical Thinking,0.6753984533670715,Skills
 Skills_Time Management,0.6742989761230466,Skills
-Skills_Judgment and Decision Making,0.6596195710902552,Skills
-Skills_Reading Comprehension,0.6543937451862972,Skills
+Skills_Judgment and Decision Making,0.659619571090255,Skills
+Skills_Reading Comprehension,0.6543937451862971,Skills
 WorkActivities_Evaluating Information to Determine Compliance with Standards,0.8688240939296613,WorkActivities
-"WorkActivities_Organizing, Planning, and Prioritizing Work",0.8422614658646606,WorkActivities
-WorkActivities_Processing Information,0.8243361572595483,WorkActivities
-WorkActivities_Documenting/Recording Information,0.8204206299441618,WorkActivities
-WorkActivities_Making Decisions and Solving Problems,0.8153991824728052,WorkActivities
-"WorkActivities_Monitoring Processes, Materials, or Surroundings",0.812043694552109,WorkActivities
+"WorkActivities_Organizing, Planning, and Prioritizing Work",0.8422614658646604,WorkActivities
+WorkActivities_Processing Information,0.8243361572595485,WorkActivities
+WorkActivities_Documenting/Recording Information,0.8204206299441621,WorkActivities
+WorkActivities_Making Decisions and Solving Problems,0.8153991824728054,WorkActivities
+"WorkActivities_Monitoring Processes, Materials, or Surroundings",0.8120436945521091,WorkActivities
 WorkActivities_Updating and Using Relevant Knowledge,0.8081794632975826,WorkActivities
-WorkActivities_Analyzing Data or Information,0.7720305879933468,WorkActivities
+WorkActivities_Analyzing Data or Information,0.7720305879933467,WorkActivities
 WorkActivities_Scheduling Work and Activities,0.7709521105355148,WorkActivities
-"WorkActivities_Communicating with Supervisors, Peers, or Subordinates",0.7371088882535752,WorkActivities
+"WorkActivities_Communicating with Supervisors, Peers, or Subordinates",0.7371088882535751,WorkActivities

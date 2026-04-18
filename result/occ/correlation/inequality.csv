@@ -1,41 +1,41 @@
 element_name,correlation_coefficient,source_table
-Abilities_Perceptual Speed,-0.2757806444365113,Abilities
-Abilities_Fluency of Ideas,0.2558358186043794,Abilities
+Abilities_Perceptual Speed,-0.27578064443651146,Abilities
+Abilities_Fluency of Ideas,0.25583581860437943,Abilities
 Abilities_Number Facility,0.25480331381161087,Abilities
-Abilities_Flexibility of Closure,-0.2234000845951227,Abilities
-Abilities_Trunk Strength,0.21973917744125557,Abilities
-Abilities_Finger Dexterity,-0.21422659490067203,Abilities
-Abilities_Far Vision,-0.2052464566872661,Abilities
-Abilities_Originality,0.20187080333736707,Abilities
+Abilities_Flexibility of Closure,-0.22340008459512284,Abilities
+Abilities_Trunk Strength,0.2197391774412555,Abilities
+Abilities_Finger Dexterity,-0.21422659490067206,Abilities
+Abilities_Far Vision,-0.20524645668726615,Abilities
+Abilities_Originality,0.20187080333736712,Abilities
 Abilities_Mathematical Reasoning,0.19479478124379296,Abilities
 Abilities_Auditory Attention,-0.1780340904506598,Abilities
-Knowledge_Sales and Marketing,0.5327758690164565,Knowledge
-Knowledge_Design,0.3426030641152569,Knowledge
-Knowledge_Mathematics,0.33746728303735174,Knowledge
-Knowledge_Administration and Management,0.3065223203372221,Knowledge
-Knowledge_Medicine and Dentistry,-0.2928264284362491,Knowledge
-Knowledge_Engineering and Technology,0.266089086201701,Knowledge
-Knowledge_Economics and Accounting,0.2628260877740018,Knowledge
-Knowledge_Building and Construction,0.2052384274511149,Knowledge
-Knowledge_Philosophy and Theology,-0.20070956115295832,Knowledge
-Knowledge_Production and Processing,0.19889156283770407,Knowledge
-Skills_Persuasion,0.44894612965639247,Skills
+Knowledge_Sales and Marketing,0.5327758690164563,Knowledge
+Knowledge_Design,0.34260306411525665,Knowledge
+Knowledge_Mathematics,0.33746728303735185,Knowledge
+Knowledge_Administration and Management,0.30652232033722204,Knowledge
+Knowledge_Medicine and Dentistry,-0.2928264284362492,Knowledge
+Knowledge_Engineering and Technology,0.2660890862017011,Knowledge
+Knowledge_Economics and Accounting,0.26282608777400185,Knowledge
+Knowledge_Building and Construction,0.20523842745111495,Knowledge
+Knowledge_Philosophy and Theology,-0.2007095611529584,Knowledge
+Knowledge_Production and Processing,0.19889156283770404,Knowledge
+Skills_Persuasion,0.4489461296563925,Skills
 Skills_Negotiation,0.4221740259332461,Skills
-Skills_Technology Design,0.2831065444788922,Skills
+Skills_Technology Design,0.2831065444788923,Skills
 Skills_Management of Financial Resources,0.2502385160543892,Skills
-Skills_Service Orientation,0.21839074904521177,Skills
-Skills_Coordination,0.205088844059268,Skills
-Skills_Mathematics,0.1915874046731353,Skills
+Skills_Service Orientation,0.21839074904521183,Skills
+Skills_Coordination,0.20508884405926806,Skills
+Skills_Mathematics,0.19158740467313534,Skills
 Skills_Systems Evaluation,0.1905448733337763,Skills
-Skills_Operation and Control,0.17416489733056317,Skills
+Skills_Operation and Control,0.1741648973305632,Skills
 Skills_Monitoring,0.1612115701393505,Skills
-WorkActivities_Selling or Influencing Others,0.42735862449292283,WorkActivities
+WorkActivities_Selling or Influencing Others,0.4273586244929228,WorkActivities
 "WorkActivities_Judging the Qualities of Objects, Services, or People",0.33195222235629857,WorkActivities
 WorkActivities_Assisting and Caring for Others,-0.3318411927206679,WorkActivities
 "WorkActivities_Estimating the Quantifiable Characteristics of Products, Events, or Information",0.22306205649868568,WorkActivities
-WorkActivities_Thinking Creatively,0.2128143642976916,WorkActivities
+WorkActivities_Thinking Creatively,0.21281436429769163,WorkActivities
 WorkActivities_Performing Administrative Activities,-0.18168866202195214,WorkActivities
-WorkActivities_Monitoring and Controlling Resources,-0.17931760878918138,WorkActivities
-WorkActivities_Developing Objectives and Strategies,0.15861199722923375,WorkActivities
-"WorkActivities_Identifying Objects, Actions, and Events",-0.15604950875336915,WorkActivities
+WorkActivities_Monitoring and Controlling Resources,-0.1793176087891814,WorkActivities
+WorkActivities_Developing Objectives and Strategies,0.15861199722923383,WorkActivities
+"WorkActivities_Identifying Objects, Actions, and Events",-0.15604950875336926,WorkActivities
 WorkActivities_Repairing and Maintaining Electronic Equipment,-0.15015925726907342,WorkActivities

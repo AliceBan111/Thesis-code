@@ -238,32 +238,53 @@ Reads the merged IRF trajectories CSV, filters for `target_outcome`, sums betas
 over horizons 1-36 for each occupational group, and returns a 2-column DataFrame:
   :Occupational_Group  |  Symbol(target_outcome)
 """
+
 function calculate_cumulative_irf_single(input_file::String, target_outcome::String;
-                                          data_dir::String = "../../result/occ/analysis")
+                                         data_dir::String = "../../result/occ/analysis",
+                                         standardize::Bool = true)
 
     filepath = joinpath(data_dir, input_file)
     isfile(filepath) || error("File not found: $filepath")
 
     df = CSV.read(filepath, DataFrame; missingstring=["", "NA", "N/A"])
 
-    # Filter for this outcome
+    # Filter for target outcome
     filter!(row -> row.outcome == target_outcome, df)
     nrow(df) > 0 || error("Outcome '$target_outcome' not found in $input_file")
 
-    # Identify group columns (everything except :outcome and :horizon)
+    # Identify group columns
     exclude = Set([:outcome, :horizon])
     grp_cols = [c for c in propertynames(df) if !(c in exclude)]
     isempty(grp_cols) && error("No group columns found in $input_file")
 
-    # Reshape wide → long
-    df_long = stack(df, grp_cols, variable_name=:Occupational_Group, value_name=:Beta)
+    # Wide -> Long
+    df_long = stack(df, grp_cols,
+                    variable_name = :Occupational_Group,
+                    value_name = :Beta)
 
-    # Filter horizons 1-36
-    filter!(row -> !ismissing(row.horizon) && row.horizon >= 1 && row.horizon <= 36, df_long)
+    # Keep horizons 1-36
+    filter!(row -> !ismissing(row.horizon) &&
+                   row.horizon >= 1 &&
+                   row.horizon <= 36, df_long)
 
-    # Sum betas by group
+    # Sum cumulative IRF
     df_cum = combine(groupby(df_long, :Occupational_Group),
                      :Beta => (b -> sum(skipmissing(b))) => Symbol(target_outcome))
+
+    # Standardization (z-score)
+    if standardize
+        col = Symbol(target_outcome)
+        vals = df_cum[!, col]
+
+        μ = mean(skipmissing(vals))
+        σ = std(skipmissing(vals))
+
+        if σ == 0
+            df_cum[!, col] .= 0.0
+        else
+            df_cum[!, col] = (vals .- μ) ./ σ
+        end
+    end
 
     sort!(df_cum, :Occupational_Group)
     return df_cum

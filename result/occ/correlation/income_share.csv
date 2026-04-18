@@ -1,41 +1,41 @@
 element_name,correlation_coefficient,source_table
-Abilities_Time Sharing,-0.737654461450359,Abilities
+Abilities_Time Sharing,-0.7376544614503588,Abilities
 Abilities_Memorization,-0.38406124221010723,Abilities
 Abilities_Speech Recognition,-0.32951741428462916,Abilities
-Abilities_Auditory Attention,-0.2658840095848527,Abilities
+Abilities_Auditory Attention,-0.26588400958485275,Abilities
 Abilities_Speed of Closure,-0.23818617860504424,Abilities
-Abilities_Wrist-Finger Speed,0.2337542623751921,Abilities
-Abilities_Speech Clarity,-0.22192784811205898,Abilities
-Abilities_Hearing Sensitivity,-0.22023436120836037,Abilities
-Abilities_Trunk Strength,-0.19138339702445162,Abilities
-Abilities_Number Facility,-0.18525578461761721,Abilities
-Knowledge_Fine Arts,-0.5148475822407054,Knowledge
-Knowledge_Sales and Marketing,-0.46517219417505895,Knowledge
-Knowledge_Telecommunications,0.428828791137252,Knowledge
+Abilities_Wrist-Finger Speed,0.23375426237519212,Abilities
+Abilities_Speech Clarity,-0.221927848112059,Abilities
+Abilities_Hearing Sensitivity,-0.2202343612083604,Abilities
+Abilities_Trunk Strength,-0.19138339702445165,Abilities
+Abilities_Number Facility,-0.1852557846176172,Abilities
+Knowledge_Fine Arts,-0.5148475822407053,Knowledge
+Knowledge_Sales and Marketing,-0.46517219417505906,Knowledge
+Knowledge_Telecommunications,0.42882879113725186,Knowledge
 Knowledge_Foreign Language,-0.4036873929768557,Knowledge
-Knowledge_Psychology,-0.4028171237276756,Knowledge
-Knowledge_History and Archeology,-0.36801188229232534,Knowledge
-Knowledge_Communications and Media,-0.36093812924968943,Knowledge
-Knowledge_Therapy and Counseling,-0.358498145664526,Knowledge
-Knowledge_Sociology and Anthropology,-0.3305511877265852,Knowledge
-Knowledge_Mechanical,-0.2867531297932155,Knowledge
-Skills_Programming,0.43048055747214703,Skills
-Skills_Persuasion,-0.39812835996562274,Skills
-Skills_Negotiation,-0.3924865804997419,Skills
+Knowledge_Psychology,-0.40281712372767575,Knowledge
+Knowledge_History and Archeology,-0.3680118822923254,Knowledge
+Knowledge_Communications and Media,-0.36093812924968954,Knowledge
+Knowledge_Therapy and Counseling,-0.3584981456645261,Knowledge
+Knowledge_Sociology and Anthropology,-0.33055118772658526,Knowledge
+Knowledge_Mechanical,-0.28675312979321554,Knowledge
+Skills_Programming,0.4304805574721472,Skills
+Skills_Persuasion,-0.3981283599656227,Skills
+Skills_Negotiation,-0.39248658049974183,Skills
 Skills_Management of Financial Resources,-0.2963719996237837,Skills
-Skills_Service Orientation,-0.2898935684355099,Skills
-Skills_Technology Design,0.26509863457693417,Skills
-Skills_Management of Material Resources,-0.2569178065548431,Skills
-Skills_Instructing,-0.19425782662546437,Skills
+Skills_Service Orientation,-0.28989356843550995,Skills
+Skills_Technology Design,0.2650986345769342,Skills
+Skills_Management of Material Resources,-0.25691780655484314,Skills
+Skills_Instructing,-0.1942578266254643,Skills
 Skills_Time Management,-0.16663321229695283,Skills
-Skills_Social Perceptiveness,-0.1626470023270237,Skills
-WorkActivities_Selling or Influencing Others,-0.7012991637196104,WorkActivities
+Skills_Social Perceptiveness,-0.16264700232702375,Skills
+WorkActivities_Selling or Influencing Others,-0.7012991637196105,WorkActivities
 WorkActivities_Performing for or Working Directly with the Public,-0.531613115318556,WorkActivities
 WorkActivities_Resolving Conflicts and Negotiating with Others,-0.3819753107924944,WorkActivities
 WorkActivities_Repairing and Maintaining Electronic Equipment,-0.33159319940717746,WorkActivities
-"WorkActivities_Judging the Qualities of Objects, Services, or People",-0.29905529403195363,WorkActivities
-WorkActivities_Establishing and Maintaining Interpersonal Relationships,-0.2970861944583867,WorkActivities
-"WorkActivities_Guiding, Directing, and Motivating Subordinates",-0.25672610440777266,WorkActivities
-WorkActivities_Evaluating Information to Determine Compliance with Standards,0.2408132077958115,WorkActivities
-WorkActivities_Developing and Building Teams,-0.23188200975037637,WorkActivities
-WorkActivities_Handling and Moving Objects,-0.21763230673131095,WorkActivities
+"WorkActivities_Judging the Qualities of Objects, Services, or People",-0.2990552940319537,WorkActivities
+WorkActivities_Establishing and Maintaining Interpersonal Relationships,-0.2970861944583868,WorkActivities
+"WorkActivities_Guiding, Directing, and Motivating Subordinates",-0.25672610440777277,WorkActivities
+WorkActivities_Evaluating Information to Determine Compliance with Standards,0.24081320779581153,WorkActivities
+WorkActivities_Developing and Building Teams,-0.2318820097503764,WorkActivities
+WorkActivities_Handling and Moving Objects,-0.21763230673131098,WorkActivities
