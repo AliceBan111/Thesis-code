@@ -77,19 +77,19 @@ function build_standardized_merged_irf_df(; horizon_range=nothing)
         # Z-score standardization within this outcome only
         # each occupation column separately
         # --------------------------------------------------
-        for col in occupation_cols
-            x = Float64.(df[!, col])
+        # for col in occupation_cols
+        #     x = Float64.(df[!, col])
 
-            μ = mean(x)
-            σ = std(x)
+        #     μ = mean(x)
+        #     σ = std(x)
 
-            # avoid divide-by-zero if constant series
-            if σ < 1e-12
-                df[!, col] .= 0.0
-            else
-                df[!, col] = (x .- μ) ./ σ
-            end
-        end
+        #     # avoid divide-by-zero if constant series
+        #     if σ < 1e-12
+        #         df[!, col] .= 0.0
+        #     else
+        #         df[!, col] = (x .- μ) ./ σ
+        #     end
+        # end
 
         push!(dfs, df)
     end

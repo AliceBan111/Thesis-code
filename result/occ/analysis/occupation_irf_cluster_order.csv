@@ -1,10 +1,10 @@
 order,occupation_raw,occupation_label
-1,group2_Professional_specialty,Professional specialty
-2,group3_High_tech,High tech
+1,group3_High_tech,High tech
+2,group2_Professional_specialty,Professional specialty
 3,group1_Managerial,Managerial
-4,group4_Sales,Sales
-5,group5_Administrative_support,Administrative support
-6,group6_Service,Service
-7,group7_Farming_forestry_construction,Farming / forestry / construction
-8,group8_Precision_production_repair,Precision production / repair
-9,group9_Machine_operators_transport,Machine operators / transport
+4,group9_Machine_operators_transport,Machine operators / transport
+5,group7_Farming_forestry_construction,Farming / forestry / construction
+6,group5_Administrative_support,Administrative support
+7,group6_Service,Service
+8,group4_Sales,Sales
+9,group8_Precision_production_repair,Precision production / repair

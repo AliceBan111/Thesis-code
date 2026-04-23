@@ -1,14 +1,21 @@
 # =============================================================================
-# data_prep_occ.jl
-# Oil Supply News Shock × Occupational Wage Heterogeneity
-# Step 1: Load all data, construct cell-level panel
+# data_prep_ind_v2.jl
+# Oil Supply News Shock × Industry Heterogeneity + OilShare Exposure
 #
-# 统一入口 — 六个变体合并版
-#   variant ∈ :hourly_rate | :hours | :income | :inequality | :median | :unemployment
+# 基于 data_prep_occ.jl（文件1）的 dat 列布局与解析逻辑
+# 在 data_prep_ind（文件3）的行业分组框架上重写
 #
-# 用法示例：
-#   include("data_prep_occ.jl")
-#   panel = main(:hourly_rate)   # 或 :hours / :income / :inequality / :median / :unemployment
+# 新增：
+#   - OilShare (Bartik exposure) 构造：
+#       Exposure_o = Σ_i Share_{o,i} × OilIntensity_i
+#     其中 Share_{o,i} = occ group o 中在 ind group i 就业的比例
+#     （本文件在 ind 层面运行，OilShare 作为截面特征供后续分析使用）
+#   - 12-group industry 分析（删除 group 13，因无 BEA 对应数据）
+#
+# 用法：
+#   include("data_prep_ind_v2.jl")
+#   panel = main(:hourly_rate)
+#   # OilShare 向量（12个行业组）在 OIL_INTENSITY 中定义
 # =============================================================================
 
 using HTTP, Downloads, SHA
@@ -22,45 +29,125 @@ using Printf
 # =============================================================================
 const DATA_DIR = joinpath(@__DIR__, "../..", "data")
 
-const CPS_FILE_ID = "1X1x9XCU5LGaxcnKrzhQBEb4O165OW4D1"
-const CPS_SHA256  = "34C48660BDCDA4F2B6C22FB4D135D91CDCFBE137FF64D7100903E359C98B40B3"
-const CPS_PATH    = joinpath(DATA_DIR, "cps_00017.dat")
+# ---- 使用与 occ 版本相同的 CPS 文件（含 occ1990 + ind1990 双列）----------
+# 文件1（cps_00018.dat）的列布局：
+#   YEAR       1-4
+#   MONTH      5-6
+#   WTFINL     7-20  (4 implied decimals)
+#   EARNWEEK2  21-28 (2 implied decimals)
+#   AGE        29-30
+#   SEX        31-31
+#   MARST      32-32
+#   EMPSTAT    33-34
+#   OCC1990    35-37
+#   IND1990    38-40
+#   CLASSWKR   41-42
+#   UHRSWORKT  43-45
+#   AHRSWORKT  46-48
+#   EARNWT     49-58  (4 implied decimals)
+const CPS_FILE_ID = "1bz1vYmddvubhLfp_TQ2x83hdUZ3NAZfu"
+const CPS_SHA256  = "67CFDB7EE29C81587F8C7F269328FB8FE43E58D9868C5F6AB98C5139575A5D4E"
+const CPS_PATH    = joinpath(DATA_DIR, "cps_00018.dat")
 
-# Sample period
 const DATE_START = Date(1983, 4, 1)
 const DATE_END   = Date(2025, 6, 1)
+const L_LAG      = 12
 
-# LP horizons
-const L_LAG = 12   # shock lags
+# =============================================================================
+# 1. OIL INTENSITY（1997年 BEA I-O Table，12个行业组）
+#    来源：用户提供，基于 ind1990 → 12-group crosswalk
+#    Group 13 (Public_administration) 因无 BEA 对应数据，直接删除
+# =============================================================================
+const OIL_INTENSITY = Dict(
+    1  => 0.0365,   # Agriculture_forestry_fishing
+    2  => 0.8997,   # Mining
+    3  => 0.0387,   # Construction
+    4  => 0.0819,   # Manufacturing_nondurable 
+    5  => 0.1789,   # Manufacturing_durable
+    6  => 0.6012,   # Transportation_utilities
+    7  => 0.0023,   # Wholesale_trade
+    8  => 0.0069,   # Retail_trade
+    9  => 0.0265,   # Finance_insurance_realestate
+    10 => 0.0143,   # Business_repair_services
+    11 => 0.0283,   # Personal_entertainment_services
+    12 => 0.0210,   # Professional_related_services
+)
 
-# 按 variant 返回 OUTPUT_DIR 并确保目录存在
-function get_output_dir_ind(variant::Symbol)::String
-    base = joinpath(@__DIR__, "../..", "result", "ind")
-    dir = if variant == :hourly_rate
-        joinpath(base, "hourly_rate")
-    elseif variant == :hours
-        joinpath(base, "hours")
-    elseif variant == :income
-        joinpath(base, "income")
-    elseif variant == :income_share_var
-        joinpath(base, "income_share")   
-    elseif variant == :inequality
-        joinpath(base, "inequality")
-    elseif variant == :median
-        joinpath(base, "median")
-    elseif variant == :unemployment
-        joinpath(base, "unemployment")  
-    elseif variant == :employment
-        joinpath(base, "employment")
-    else
-        error("Unknown variant: $variant.")
-    end
+# =============================================================================
+# 2. INDUSTRY & OCCUPATION CLASSIFICATION
+# =============================================================================
+const IND_LABELS = Dict(
+    1  => "Agriculture_forestry_fishing",
+    2  => "Mining",
+    3  => "Construction",
+    4  => "Manufacturing_nondurable",
+    5  => "Manufacturing_durable",
+    6  => "Transportation_utilities",
+    7  => "Wholesale_trade",
+    8  => "Retail_trade",
+    9  => "Finance_insurance_realestate",
+    10 => "Business_repair_services",
+    11 => "Personal_entertainment_services",
+    12 => "Professional_related_services",
+    # 13 已删除
+)
+
+const OCC_LABELS = Dict(
+    1 => "Managerial",
+    2 => "Professional_specialty",
+    3 => "High_tech",
+    4 => "Sales",
+    5 => "Administrative_support",
+    6 => "Service",
+    7 => "Farming_forestry_construction",
+    8 => "Precision_production_repair",
+    9 => "Machine_operators_transport",
+)
+
+function classify_ind1990(ind::Union{Integer,Missing})::Union{Int,Missing}
+    ismissing(ind) && return missing
+    ind in 10:32   && return 1
+    (ind in 40:50 || ind in 200:201)   && return 2
+    ind == 60      && return 3
+    (ind in 100:199 || ind in 202:222) && return 4
+    ind in 230:392 && return 5
+    ind in 400:472 && return 6
+    ind in 500:571 && return 7
+    ind in 580:691 && return 8
+    ind in 700:712 && return 9
+    ind in 721:760 && return 10
+    ind in 761:810 && return 11
+    ind in 812:893 && return 12
+    # ind in 900:932 → group 13，已删除，返回 missing
+    return missing
+end
+
+function classify_occ1990(occ::Union{Integer,Missing})::Union{Int,Missing}
+    ismissing(occ) && return missing
+    occ in 3:37                                           && return 1
+    occ in 43:200                                         && return 2
+    occ in 203:235                                        && return 3
+    occ in 243:283                                        && return 4
+    occ in 303:389                                        && return 5
+    occ in 405:469                                        && return 6
+    (occ in 473:498 || occ in 558:599 || occ in 614:617) && return 7
+    (occ in 503:549 || occ in 628:699)                   && return 8
+    (occ in 703:799 || occ in 803:889)                   && return 9
+    return missing
+end
+
+# =============================================================================
+# 3. OUTPUT DIRECTORY
+# =============================================================================
+function get_output_dir(variant::Symbol)::String
+    base = joinpath(@__DIR__, "../..", "result", "ind_v2")
+    dir  = joinpath(base, string(variant))
     mkpath(dir)
     return dir
 end
 
 # =============================================================================
-# 1. DOWNLOAD CPS (if needed)
+# 4. DOWNLOAD CPS
 # =============================================================================
 function download_gdrive_large(file_id::String, dest::String;
                                 expected_hash::Union{String,Nothing}=nothing)
@@ -74,7 +161,6 @@ function download_gdrive_large(file_id::String, dest::String;
             return
         end
     end
-
     println("Downloading CPS data from Google Drive...")
     base_url = "https://drive.google.com/uc?export=download&id=$(file_id)"
     resp     = HTTP.get(base_url)
@@ -87,7 +173,6 @@ function download_gdrive_large(file_id::String, dest::String;
     end
     Downloads.download(real_url, dest)
     println("Download complete.")
-
     if !isnothing(expected_hash)
         actual = bytes2hex(open(sha256, dest))
         lowercase(actual) != lowercase(expected_hash) &&
@@ -97,18 +182,9 @@ function download_gdrive_large(file_id::String, dest::String;
 end
 
 # =============================================================================
-# 2. DATE PARSING UTILITIES
+# 5. DATE PARSING
 # =============================================================================
-
-"""
-    parse_yearmonth(raw) -> Union{Date, Nothing}
-
-解析多种日期格式，统一返回当月第一天的 Date：
-  - "1975M04" / "1975m04"  (Excel 里的格式)
-  - Julia Date 对象         (XLSX 有时直接返回 Date)
-  - 其他格式返回 nothing
-"""
-function parse_yearmonth(raw)::Union{Date, Nothing}
+function parse_yearmonth(raw)::Union{Date,Nothing}
     raw isa Date && return raw
     s = strip(string(raw))
     m = match(r"^(\d{4})[Mm](\d{2})$", s)
@@ -119,260 +195,254 @@ function parse_yearmonth(raw)::Union{Date, Nothing}
 end
 
 # =============================================================================
-# 3. OCCUPATION CLASSIFICATION
+# 6. PARSE CPS FIXED-WIDTH FILE
+#    使用文件1（cps_00018.dat）的列布局，同时读取 OCC1990 和 IND1990
 # =============================================================================
-# const OCC_LABELS = Dict(
-#     1 => "Managerial",
-#     2 => "Professional_specialty",
-#     3 => "High_tech",
-#     4 => "Sales",
-#     5 => "Administrative_support",
-#     6 => "Service",
-#     7 => "Farming_forestry_construction",
-#     8 => "Precision_production_repair",
-#     9 => "Machine_operators_transport",
-# )
-
-# function classify_occ1990(occ::Union{Integer,Missing})::Union{Int,Missing}
-#     ismissing(occ) && return missing
-#     occ in 3:37                                           && return 1
-#     occ in 43:200                                         && return 2
-#     occ in 203:235                                        && return 3
-#     occ in 243:283                                        && return 4
-#     occ in 303:389                                        && return 5
-#     occ in 405:469                                        && return 6
-#     (occ in 473:498 || occ in 558:599 || occ in 614:617) && return 7
-#     (occ in 503:549 || occ in 628:699)                   && return 8
-#     (occ in 703:799 || occ in 803:889)                   && return 9
-#     return missing
-# end
-
-# =============================================================================
-# 4. INDUSTRY CLASSIFICATION (IND1990 -> 13 major groups)  [currently unused]
-# =============================================================================
-const IND_LABELS = Dict(
-    1  => "Agriculture_forestry_fishing",  2  => "Mining",
-    3  => "Construction",                  4  => "Manufacturing_nondurable",
-    5  => "Manufacturing_durable",         6  => "Transportation_utilities",
-    7  => "Wholesale_trade",               8  => "Retail_trade",
-    9  => "Finance_insurance_realestate",  10 => "Business_repair_services",
-    11 => "Personal_entertainment_services", 12 => "Professional_related_services",
-    13 => "Public_administration",
-)
-
-function classify_ind1990(ind::Union{Integer,Missing})::Union{Int,Missing}
-    ismissing(ind) && return missing
-    ind in 10:32   && return 1;  ind in 40:50   && return 2
-    ind == 60      && return 3;  ind in 100:222 && return 4
-    ind in 230:392 && return 5;  ind in 400:472 && return 6
-    ind in 500:571 && return 7;  ind in 580:691 && return 8
-    ind in 700:712 && return 9;  ind in 721:760 && return 10
-    ind in 761:810 && return 11; ind in 812:893 && return 12
-    ind in 900:932 && return 13
-    return missing
-end
-
-# =============================================================================
-# 5. PARSE CPS FIXED-WIDTH FILE  （性能优化 + bug修复版）
-# =============================================================================
-# Column layout from data dictionary:
-#   YEAR       1-4
-#   MONTH      5-6
-#   WTFINL     7-20  (4 implied decimals)
-#   AGE        21-22
-#   SEX        23-23
-#   MARST      24-24
-#   EMPSTAT    25-26
-#   OCC1990    27-29
-#   IND1990    30-32
-#   CLASSWKR   33-34
-#   UHRSWORKT  35-37
-#   EARNWT     38-47  (4 implied decimals)
-#   EARNWEEK   48-55  (2 implied decimals)
-
 function parse_cps(path::String)::DataFrame
-    println("Parsing CPS fixed-width file: $path")
+    println("Parsing CPS fixed-width file (occ+ind layout): $path")
     println("File size: ", round(filesize(path)/1e9, digits=2), " GB")
 
-    est_rows = max(1_000_000, round(Int, filesize(path) / 45))
+    est_rows = max(1_000_000, round(Int, filesize(path) / 48))
 
-    year_v      = Vector{Int32}(undef, est_rows)
-    month_v     = Vector{Int32}(undef, est_rows)
-    wtfinl_v    = Vector{Float32}(undef, est_rows)
-    age_v       = Vector{Int32}(undef, est_rows)
-    sex_v       = Vector{Int32}(undef, est_rows)
-    marst_v     = Vector{Int32}(undef, est_rows)
-    empstat_v   = Vector{Int32}(undef, est_rows)
-    ind1990_v   = Vector{Int32}(undef, est_rows)
-    classwkr_v  = Vector{Int32}(undef, est_rows)
-    uhrsworkt_v = Vector{Float32}(undef, est_rows)
-    earnwt_v    = Vector{Float32}(undef, est_rows)
-    earnweek_v  = Vector{Float32}(undef, est_rows)
+    year_v       = Vector{Int32}(undef, est_rows)
+    month_v      = Vector{Int32}(undef, est_rows)
+    wtfinl_v     = Vector{Float32}(undef, est_rows)
+    earnweek2_v  = Vector{Float32}(undef, est_rows)
+    age_v        = Vector{Int32}(undef, est_rows)
+    sex_v        = Vector{Int32}(undef, est_rows)
+    marst_v      = Vector{Int32}(undef, est_rows)
+    empstat_v    = Vector{Int32}(undef, est_rows)
+    occ1990_v    = Vector{Int32}(undef, est_rows)
+    ind1990_v    = Vector{Int32}(undef, est_rows)
+    classwkr_v   = Vector{Int32}(undef, est_rows)
+    hours_v      = Vector{Float32}(undef, est_rows)
+    earnwt_v     = Vector{Float32}(undef, est_rows)
 
     n = 0
 
     open(path, "r") do f
         for line in eachline(f)
-            length(line) < 40 && continue
+            length(line) < 50 && continue
 
             year  = parse(Int32, @view line[1:4])
             month = parse(Int32, @view line[5:6])
-
             d = Date(year, month, 1)
             (d < DATE_START || d > DATE_END) && continue
 
             wtfinl_raw = tryparse(Float64, strip(@view line[7:20]))
             isnothing(wtfinl_raw) && continue
 
-            earnwt_raw = tryparse(Float64, strip(@view line[38:47]))
+            earnwt_raw = tryparse(Float64, strip(@view line[49:58]))
             isnothing(earnwt_raw) && continue
 
-            earnwk_str = strip(@view line[48:55])
+            earnwk_str = strip(@view line[21:28])
             isempty(earnwk_str) && continue
             earnwk_raw = tryparse(Float64, earnwk_str)
             isnothing(earnwk_raw) && continue
 
-            uhrsworkt_str = strip(@view line[35:37])
-            isempty(uhrsworkt_str) && continue
-            uhrsworkt_raw = tryparse(Float64, uhrsworkt_str)
-            isnothing(uhrsworkt_raw) && continue
+            # Hours: pre-1994 use AHRSWORKT (46-48), post use UHRSWORKT (43-45)
+            hrs_raw = nothing
+            if year < 1994
+                hrs_str = strip(@view line[46:48])
+                !isempty(hrs_str) && (hrs_raw = tryparse(Float64, hrs_str))
+            else
+                hrs_str = strip(@view line[43:45])
+                !isempty(hrs_str) && (hrs_raw = tryparse(Float64, hrs_str))
+            end
+            isnothing(hrs_raw) && continue
 
             n += 1
             if n > length(year_v)
                 new_cap = round(Int, length(year_v) * 1.5)
                 foreach(v -> resize!(v, new_cap),
-                    (year_v, month_v, wtfinl_v, age_v, sex_v, marst_v,
-                     empstat_v, ind1990_v, classwkr_v, uhrsworkt_v, earnwt_v, earnweek_v))
+                    (year_v, month_v, wtfinl_v, earnweek2_v, age_v, sex_v, marst_v,
+                     empstat_v, occ1990_v, ind1990_v, classwkr_v, hours_v, earnwt_v))
             end
 
             year_v[n]      = year
             month_v[n]     = month
             wtfinl_v[n]    = Float32(wtfinl_raw / 10_000.0)
-            age_v[n]       = parse(Int32, @view line[21:22])
-            sex_v[n]       = parse(Int32, @view line[23:23])
-            marst_v[n]     = parse(Int32, @view line[24:24])
-            empstat_v[n]   = parse(Int32, @view line[25:26])
-            ind1990_v[n]   = parse(Int32, @view line[30:32])
-            classwkr_v[n]  = parse(Int32, @view line[33:34])
-            uhrsworkt_v[n] = Float32(uhrsworkt_raw)
+            earnweek2_v[n] = Float32(earnwk_raw / 100.0)
+            age_v[n]       = parse(Int32, @view line[29:30])
+            sex_v[n]       = parse(Int32, @view line[31:31])
+            marst_v[n]     = parse(Int32, @view line[32:32])
+            empstat_v[n]   = parse(Int32, @view line[33:34])
+            occ1990_v[n]   = parse(Int32, @view line[35:37])
+            ind1990_v[n]   = parse(Int32, @view line[38:40])
+            classwkr_v[n]  = parse(Int32, @view line[41:42])
+            hours_v[n]     = Float32(hrs_raw)
             earnwt_v[n]    = Float32(earnwt_raw / 10_000.0)
-            earnweek_v[n]  = Float32(earnwk_raw / 100.0)
         end
     end
 
     df = DataFrame(
-        year      = year_v[1:n],
-        month     = month_v[1:n],
-        wtfinl    = wtfinl_v[1:n],
-        age       = age_v[1:n],
-        sex       = sex_v[1:n],
-        marst     = marst_v[1:n],
-        empstat   = empstat_v[1:n],
-        ind1990   = ind1990_v[1:n],
-        classwkr  = classwkr_v[1:n],
-        uhrsworkt = uhrsworkt_v[1:n],
-        earnwt    = earnwt_v[1:n],
-        earnweek  = earnweek_v[1:n],
+        year         = year_v[1:n],
+        month        = month_v[1:n],
+        wtfinl       = wtfinl_v[1:n],
+        earnweek     = earnweek2_v[1:n],
+        age          = age_v[1:n],
+        sex          = sex_v[1:n],
+        marst        = marst_v[1:n],
+        empstat      = empstat_v[1:n],
+        occ1990      = occ1990_v[1:n],
+        ind1990      = ind1990_v[1:n],
+        classwkr     = classwkr_v[1:n],
+        hours_worked = hours_v[1:n],
+        earnwt       = earnwt_v[1:n],
     )
-
     println("  Raw rows in sample period: ", nrow(df))
     return df
 end
 
 # =============================================================================
-# 6. SAMPLE SELECTION & VARIABLE CONSTRUCTION
+# 7. OILSHARE CONSTRUCTION（Bartik exposure）
+#
+#   Exposure_o = Σ_i Share_{o,i} × OilIntensity_i
+#
+#   此处 o = occ_group (9组), i = ind_group (12组)
+#   Share_{o,i} = 职业组 o 中在行业组 i 就业的加权比例
+#
+#   返回 DataFrame: occ_group, oil_exposure
+#   同时返回 ind_group 层面的 oil_intensity（用于 ind LP 的截面分析）
+# =============================================================================
+function build_oilshare(cps_raw::DataFrame)::Tuple{DataFrame, DataFrame}
+    println("Building OilShare (Bartik exposure)...")
+
+    # 只用就业人口（employed）
+    df = @subset(cps_raw, :empstat .∈ Ref([10, 12]))
+    df = @subset(df, 15 .<= :age .<= 64)
+    df = @subset(df, :wtfinl .> 0)
+    df = @subset(df, :classwkr .∈ Ref([21, 22, 23, 24, 25, 27, 28]))
+
+    df[!, :occ_group] = map(classify_occ1990, df.occ1990)
+    df[!, :ind_group] = map(classify_ind1990, df.ind1990)
+
+    # 删除 occ 或 ind 为 missing 的行（包括 ind group 13）
+    df = @subset(df, .!ismissing.(:occ_group), .!ismissing.(:ind_group))
+    df[!, :occ_group] = convert(Vector{Int}, df.occ_group)
+    df[!, :ind_group] = convert(Vector{Int}, df.ind_group)
+
+    # 跨全样本期构造稳定的 occ×ind 就业矩阵（时间不变，用全样本权重）
+    crosstab = combine(
+        groupby(df, [:occ_group, :ind_group]),
+        :wtfinl => sum => :emp_weight
+    )
+
+    # 每个 occ_group 的总就业权重
+    occ_total = combine(groupby(crosstab, :occ_group),
+                        :emp_weight => sum => :total_weight)
+    crosstab = leftjoin(crosstab, occ_total, on = :occ_group)
+    crosstab[!, :share] = crosstab.emp_weight ./ crosstab.total_weight
+
+    # 附上 OilIntensity
+    crosstab[!, :oil_intensity] = [
+        get(OIL_INTENSITY, row.ind_group, 0.0) for row in eachrow(crosstab)
+    ]
+
+    # Bartik exposure: Σ_i share_{o,i} × OilIntensity_i
+    oilshare_df = combine(
+        groupby(crosstab, :occ_group),
+        [:share, :oil_intensity] =>
+            ((s, oi) -> sum(s .* oi)) => :oil_exposure
+    )
+    sort!(oilshare_df, :occ_group)
+
+    println("  OilShare by occupation group:")
+    for row in eachrow(oilshare_df)
+        label = get(OCC_LABELS, row.occ_group, "group_$(row.occ_group)")
+        @printf("    Group %2d %-35s %.4f\n", row.occ_group, label, row.oil_exposure)
+    end
+
+    # 也构造 ind_group 层面的 oil_intensity（直接查表）
+    ind_intensity_df = DataFrame(
+        ind_group     = sort(collect(keys(OIL_INTENSITY))),
+        oil_intensity = [OIL_INTENSITY[g] for g in sort(collect(keys(OIL_INTENSITY)))]
+    )
+
+    return oilshare_df, ind_intensity_df
+end
+
+# =============================================================================
+# 8. SAMPLE SELECTION
 # =============================================================================
 function clean_cps_labor(df::DataFrame)::DataFrame
-    println("Cleaning CPS (labor sample)...")
-
+    println("Cleaning CPS (labor sample, ind_group)...")
     df = @subset(df, :empstat .∈ Ref([10, 12, 20, 21, 22]))
-    df = @subset(df, 16 .<= :age .<= 64)
+    df = @subset(df, 15 .<= :age .<= 64)
     df = @subset(df, :wtfinl .> 0)
     df = @subset(df, :classwkr .∈ Ref([21, 22, 23, 24, 25, 27, 28]))
 
     df[!, :ind_group] = map(classify_ind1990, df.ind1990)
-    df = @subset(df, .!ismissing.(:ind_group))
+    df = @subset(df, .!ismissing.(:ind_group))   # 自动排除 group 13
     df[!, :ind_group] = convert(Vector{Int}, df.ind_group)
-
-    df[!, :date] = Date.(df.year, df.month, 1)
-
-    println(" Labor sample size:", nrow(df))
+    df[!, :date]      = Date.(df.year, df.month, 1)
+    println("  Labor sample size: ", nrow(df))
     return df
 end
 
-function build_panel_unemp(cps::DataFrame)::DataFrame
-    gdf = groupby(cps, [:ind_group, :date, :year, :month])
-
-    panel = 
-        combine(gdf) do sdf
-            emp = sdf.empstat
-            wt  = sdf.wtfinl
-            unemployed    = sum((emp .∈ Ref((20,21,22))) .* wt)
-            laborforce    = sum((emp .∈ Ref((10,12,20,21,22))) .* wt)
-            employed      = sum((emp .∈ Ref((10,12))) .* wt)
-            unemp_rate    = laborforce == 0 ? missing : unemployed / laborforce
-            log_emp_count = employed > 0 ? log(employed) : missing
-            pop_weight    = sum(wt)
-            (; unemp_rate, log_emp_count, pop_weight)
-        end
-
-    panel = @subset(panel, :pop_weight .>= 1000)
-    return sort(panel, [:ind_group, :date])
-end
-
 function clean_cps_earn(df::DataFrame)::DataFrame
-    println("Cleaning CPS (earnings sample)...")
-
+    println("Cleaning CPS (earnings sample, ind_group)...")
     df = @subset(df, :empstat .∈ Ref([10, 12]))
-    df = @subset(df, 16 .<= :age .<= 64)
-    df = @subset(df, :earnweek .> 0, :earnweek .!= 9999.99)
+    df = @subset(df, 15 .<= :age .<= 64)
+    df = @subset(df, :earnweek .> 0, :earnweek .!= 999999.99)
 
     function topcode_limit(year::Integer)
-        year <= 1988 ? 999.0f0 :
-        year <= 1997 ? 1923.0f0 : 2884.0f0
+        year <= 1988 ? 999.0 :
+        year <= 1997 ? 1923.0 : 2884.61
     end
     df = @transform(df, :earnweek = min.(:earnweek, topcode_limit.(:year)))
-
     df = @subset(df, :earnwt .> 0)
-    df = @subset(df, 0 .< :uhrsworkt .<= 105)
+    df = @subset(df, 0 .< :hours_worked .<= 105)
     df = @subset(df, :classwkr .∈ Ref([21, 22, 23, 24, 25, 27, 28]))
 
     df[!, :ind_group] = map(classify_ind1990, df.ind1990)
     df = @subset(df, .!ismissing.(:ind_group))
     df[!, :ind_group] = convert(Vector{Int}, df.ind_group)
-
-    df[!, :female]  = Int.(df.sex .== 2)
-    df[!, :married] = Int.(df.marst .∈ Ref([1, 2]))
-
-    df[!, :date] = Date.(df.year, df.month, 1)
-
-    println("   Earnings sample size: ", nrow(df))
+    df[!, :female]    = Int.(df.sex .== 2)
+    df[!, :married]   = Int.(df.marst .∈ Ref([1, 2]))
+    df[!, :date]      = Date.(df.year, df.month, 1)
+    println("  Earnings sample size: ", nrow(df))
     return df
 end
 
 # =============================================================================
-# 7. LOAD CPI AND DEFLATE WAGES
+# 9. BUILD UNEMPLOYMENT PANEL
+# =============================================================================
+function build_panel_unemp(cps::DataFrame)::DataFrame
+    gdf = groupby(cps, [:ind_group, :date, :year, :month])
+    panel = combine(gdf) do sdf
+        emp = sdf.empstat
+        wt  = sdf.wtfinl
+        unemployed    = sum((emp .∈ Ref((20,21,22))) .* wt)
+        laborforce    = sum((emp .∈ Ref((10,12,20,21,22))) .* wt)
+        employed      = sum((emp .∈ Ref((10,12))) .* wt)
+        unemp_rate    = laborforce == 0 ? missing : unemployed / laborforce
+        log_emp_count = employed > 0 ? log(employed) : missing
+        pop_weight    = sum(wt)
+        (; unemp_rate, log_emp_count, pop_weight)
+    end
+    panel = @subset(panel, :pop_weight .>= 1000)
+    return sort(panel, [:ind_group, :date])
+end
+
+# =============================================================================
+# 10. LOAD CPI AND DEFLATE
 # =============================================================================
 function load_cpi()::DataFrame
     println("Loading CPI from VARdata.xlsx...")
     path = joinpath(DATA_DIR, "VARdata.xlsx")
     xf   = XLSX.readxlsx(path)
     sh   = xf["Monthly"]
-
     dates    = Vector{Date}()
     cpi_vals = Vector{Float64}()
-
     for row in XLSX.eachrow(sh)
         XLSX.row_number(row) == 1 && continue
-        d_raw = row[1]
-        c_raw = row[7]   # Column G = CPI
+        d_raw = row[1]; c_raw = row[7]
         (ismissing(d_raw) || ismissing(c_raw)) && continue
         d = parse_yearmonth(d_raw)
         isnothing(d) && continue
-        push!(dates,    d)
-        push!(cpi_vals, Float64(c_raw))
+        push!(dates, d); push!(cpi_vals, Float64(c_raw))
     end
-
     cpi_df = DataFrame(date = dates, cpi = cpi_vals)
     cpi_df = @subset(cpi_df, DATE_START .<= :date .<= DATE_END)
     sort!(cpi_df, :date)
@@ -381,7 +451,6 @@ function load_cpi()::DataFrame
 end
 
 function deflate_wages!(cps::DataFrame, cpi::DataFrame)::DataFrame
-    println("Deflating wages with CPI...")
     cps = leftjoin(cps, select(cpi, :date, :cpi), on = :date)
     cps = @subset(cps, .!ismissing.(:cpi))
     cps[!, :real_earnweek] = cps.earnweek ./ cps.cpi
@@ -390,228 +459,178 @@ function deflate_wages!(cps::DataFrame, cpi::DataFrame)::DataFrame
 end
 
 function add_log_rwage!(cps::DataFrame, variant::Symbol)::DataFrame
-    println("Computing log real hourly wage...")
-    cps[!, :log_rwage] = cps.log_rincome .- log.(cps.uhrsworkt)
-    # :hours variant also needs log hours
+    cps[!, :log_rwage] = cps.log_rincome .- log.(cps.hours_worked)
     if variant == :hours
-        cps[!, :log_uhrsworkt] = log.(cps.uhrsworkt)
+        cps[!, :log_hours] = log.(cps.hours_worked)
     end
     return cps
 end
 
 # =============================================================================
-# 8. CONSTRUCT CELL-LEVEL PANEL  (variant-specific)
+# 11. WEIGHTED QUANTILE
 # =============================================================================
-
-# 加权分位数（inequality / median 共用）
 function weighted_quantile(x::AbstractVector, w::AbstractVector, q::Float64)::Float64
-    idx    = sortperm(x)
+    idx  = sortperm(x)
     xs, ws = x[idx], w[idx]
-    cumw   = cumsum(ws)
-    cumw ./= cumw[end]
+    cumw = cumsum(ws); cumw ./= cumw[end]
     i = searchsortedfirst(cumw, q)
     return xs[clamp(i, 1, length(xs))]
 end
 
+# =============================================================================
+# 12. BUILD EARNINGS PANEL (variant-specific)
+# =============================================================================
 function build_panel_earn(cps::DataFrame, variant::Symbol)::DataFrame
     gdf = groupby(cps, [:ind_group, :date, :year, :month])
 
     panel = if variant == :hourly_rate
         combine(gdf,
-            [:log_rincome, :earnwt] => ((w, wt) -> sum(w .* wt) / sum(wt))  => :log_rincome,
-            [:log_rwage,   :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :log_rwage,
-            [:age,         :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :age_mean,
-            [:female,      :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :female_share,
-            [:married,     :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :married_share,
-            [:uhrsworkt,   :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :hours_mean,
+            [:log_rincome, :earnwt] => ((w,wt) -> sum(w.*wt)/sum(wt)) => :log_rincome,
+            [:log_rwage,   :earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt)) => :log_rwage,
+            [:age,         :earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt)) => :age_mean,
+            [:female,      :earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt)) => :female_share,
+            [:married,     :earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt)) => :married_share,
+            [:hours_worked,:earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt)) => :hours_mean,
             :log_rincome => length => :n_obs,
         )
-
     elseif variant == :hours
         combine(gdf,
-            [:log_rincome,   :earnwt] => ((w, wt) -> sum(w .* wt) / sum(wt))  => :log_rincome,
-            [:log_rwage,     :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :log_rwage,
-            [:log_uhrsworkt, :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :log_hours,
-            [:age,           :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :age_mean,
-            [:female,        :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :female_share,
-            [:married,       :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :married_share,
+            [:log_rincome, :earnwt] => ((w,wt) -> sum(w.*wt)/sum(wt)) => :log_rincome,
+            [:log_rwage,   :earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt)) => :log_rwage,
+            [:log_hours,   :earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt)) => :log_hours,
+            [:age,         :earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt)) => :age_mean,
+            [:female,      :earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt)) => :female_share,
+            [:married,     :earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt)) => :married_share,
             :log_rincome => length => :n_obs,
         )
-
     elseif variant == :income
-        panel_tmp = combine(gdf,
-            [:log_rincome, :earnwt] => ((w, wt) -> sum(w .* wt) / sum(wt))  => :log_rincome,
-            [:log_rwage,   :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :log_rwage,
-            [:age,         :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :age_mean,
-            [:female,      :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :female_share,
-            [:married,     :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :married_share,
-            [:uhrsworkt,   :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :hours_mean,
-            [:earnweek,    :earnwt] => ((e, wt) -> sum(e .* wt))             => :total_income_weekly,
-            [:earnwt]               => sum                                    => :n_employed,
+        combine(gdf,
+            [:log_rincome, :earnwt] => ((w,wt) -> sum(w.*wt)/sum(wt)) => :log_rincome,
+            [:log_rwage,   :earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt)) => :log_rwage,
+            [:age,         :earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt)) => :age_mean,
+            [:female,      :earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt)) => :female_share,
+            [:married,     :earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt)) => :married_share,
+            [:hours_worked,:earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt)) => :hours_mean,
             :log_rincome => length => :n_obs,
         )
-        
     elseif variant == :income_share_var
-        panel_tmp = combine(gdf,
+        p = combine(gdf,
             [:log_rincome, :earnwt] => ((w, wt) -> sum(w .* wt) / sum(wt))  => :log_rincome,
             [:log_rwage,   :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :log_rwage,
             [:age,         :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :age_mean,
             [:female,      :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :female_share,
             [:married,     :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :married_share,
-            [:uhrsworkt,   :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :hours_mean,
+            [:hours_worked,   :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :hours_mean,
             [:earnweek,    :earnwt] => ((e, wt) -> sum(e .* wt))             => :total_income_weekly,
             [:earnwt]               => sum                                    => :n_employed,
             :log_rincome => length => :n_obs,
         )
-        panel_tmp = @subset(panel_tmp, :n_obs .>= 30)
-        monthly_agg = combine(groupby(panel_tmp, :date),
+        p = @subset(p, :n_obs .>= 30)
+        monthly_agg = combine(groupby(p, :date),
             :total_income_weekly => sum => :total_income_all,
             :n_employed          => sum => :total_emp_all)
-        panel_tmp = leftjoin(panel_tmp, monthly_agg, on = :date)
-        panel_tmp[!, :income_share] = panel_tmp.total_income_weekly ./ panel_tmp.total_income_all
-        check = combine(groupby(panel_tmp, :date), :income_share => sum => :sum_share)
+        p = leftjoin(p, monthly_agg, on = :date)
+        p[!, :income_share] = p.total_income_weekly ./ p.total_income_all
+        check = combine(groupby(p, :date), :income_share => sum => :sum_share)
         @assert all(isapprox.(check.sum_share, 1.0, atol=1e-6))
-        panel_tmp
+        p
 
     elseif variant == :inequality
-        panel_tmp = combine(gdf,
-            [:log_rincome, :earnwt] => ((w, wt) -> sum(w .* wt) / sum(wt))              => :log_rincome,
-            [:log_rwage,   :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))              => :log_rwage,
-            [:log_rincome, :earnwt] => ((x, wt) -> weighted_quantile(x, wt, 0.25))      => :log_rincome_p25,
-            [:log_rincome, :earnwt] => ((x, wt) -> weighted_quantile(x, wt, 0.75))      => :log_rincome_p75,
-            [:age,         :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))              => :age_mean,
-            [:female,      :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))              => :female_share,
-            [:married,     :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))              => :married_share,
-            [:uhrsworkt,   :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))              => :hours_mean,
+        p = combine(gdf,
+            [:log_rincome, :earnwt] => ((w,wt) -> sum(w.*wt)/sum(wt))         => :log_rincome,
+            [:log_rwage,   :earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt))         => :log_rwage,
+            [:log_rincome, :earnwt] => ((x,wt) -> weighted_quantile(x,wt,0.25)) => :log_rincome_p25,
+            [:log_rincome, :earnwt] => ((x,wt) -> weighted_quantile(x,wt,0.75)) => :log_rincome_p75,
+            [:age,         :earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt))         => :age_mean,
+            [:female,      :earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt))         => :female_share,
+            [:married,     :earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt))         => :married_share,
+            [:hours_worked,:earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt))         => :hours_mean,
             :log_rincome => length => :n_obs,
         )
-        panel_tmp = @subset(panel_tmp, :n_obs .>= 30)
-        panel_tmp[!, :log_ratio_7525] = panel_tmp.log_rincome_p75 .- panel_tmp.log_rincome_p25
-        panel_tmp
-
+        p = @subset(p, :n_obs .>= 30)
+        p[!, :log_ratio_7525] = p.log_rincome_p75 .- p.log_rincome_p25
+        p
     elseif variant == :median
         combine(gdf,
-            [:log_rincome, :earnwt] => ((w, wt) -> weighted_quantile(w, wt, 0.5))  => :log_rincome_p50,
-            [:log_rwage,   :earnwt] => ((x, wt) -> weighted_quantile(x, wt, 0.5))  => :log_rwage_p50,
-            [:age,         :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))          => :age_mean,
-            [:female,      :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))          => :female_share,
-            [:married,     :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))          => :married_share,
-            [:uhrsworkt,   :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))          => :hours_mean,
+            [:log_rincome, :earnwt] => ((w,wt) -> weighted_quantile(w,wt,0.5)) => :log_rincome_p50,
+            [:log_rwage,   :earnwt] => ((x,wt) -> weighted_quantile(x,wt,0.5)) => :log_rwage_p50,
+            [:age,         :earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt))          => :age_mean,
+            [:female,      :earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt))          => :female_share,
+            [:married,     :earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt))          => :married_share,
+            [:hours_worked,:earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt))          => :hours_mean,
             :log_rincome => length => :n_obs,
         )
-
-    elseif variant == :unemployment
-        # unemployment 的 earnings panel 与 hourly_rate 相同
+    elseif variant in (:unemployment, :employment)
         combine(gdf,
-            [:log_rincome, :earnwt] => ((w, wt) -> sum(w .* wt) / sum(wt))  => :log_rincome,
-            [:log_rwage,   :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :log_rwage,
-            [:age,         :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :age_mean,
-            [:female,      :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :female_share,
-            [:married,     :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :married_share,
-            [:uhrsworkt,   :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :hours_mean,
+            [:log_rincome, :earnwt] => ((w,wt) -> sum(w.*wt)/sum(wt)) => :log_rincome,
+            [:log_rwage,   :earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt)) => :log_rwage,
+            [:age,         :earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt)) => :age_mean,
+            [:female,      :earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt)) => :female_share,
+            [:married,     :earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt)) => :married_share,
+            [:hours_worked,:earnwt] => ((x,wt) -> sum(x.*wt)/sum(wt)) => :hours_mean,
             :log_rincome => length => :n_obs,
         )
-    
-    elseif variant == :employment
-        # unemployment 的 earnings panel 与 hourly_rate 相同
-        combine(gdf,
-            [:log_rincome, :earnwt] => ((w, wt) -> sum(w .* wt) / sum(wt))  => :log_rincome,
-            [:log_rwage,   :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :log_rwage,
-            [:age,         :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :age_mean,
-            [:female,      :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :female_share,
-            [:married,     :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :married_share,
-            [:uhrsworkt,   :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :hours_mean,
-            :log_rincome => length => :n_obs,
-        )
-
     else
         error("Unknown variant in build_panel_earn: $variant")
     end
 
-    # income / inequality 已经在各自分支内过滤
-    if !(variant in (:income, :inequality))
+    if !(variant in (:inequality,))
         panel = @subset(panel, :n_obs .>= 30)
     end
-
-    println("  Total observations: ", nrow(panel))
-    println("  Unique cells: ", length(unique(panel.ind_group)))
-
+    println("  Panel observations: ", nrow(panel))
     return sort(panel, [:ind_group, :date])
 end
 
 # =============================================================================
-# 9. LOAD MACRO VARIABLES
+# 13. LOAD MACRO DATA
 # =============================================================================
 function load_oil_shock()::DataFrame
     println("Loading oil supply news shock...")
     path = joinpath(DATA_DIR, "oilSupplyNewsShocks_2025M06.xlsx")
     xf   = XLSX.readxlsx(path)
     sh   = xf["Monthly"]
-
-    dates  = Vector{Date}()
-    shocks = Vector{Float64}()
-
+    dates = Vector{Date}(); shocks = Vector{Float64}()
     for row in XLSX.eachrow(sh)
         XLSX.row_number(row) == 1 && continue
-        d_raw = row[1]
-        s_raw = row[3]
+        d_raw = row[1]; s_raw = row[3]
         (ismissing(d_raw) || ismissing(s_raw)) && continue
-        d = parse_yearmonth(d_raw)
-        isnothing(d) && continue
-        push!(dates,  d)
-        push!(shocks, Float64(s_raw))
+        d = parse_yearmonth(d_raw); isnothing(d) && continue
+        push!(dates, d); push!(shocks, Float64(s_raw))
     end
-
-    df = DataFrame(date = dates, shock = shocks)
+    df = DataFrame(date=dates, shock=shocks)
     df = @subset(df, DATE_START .<= :date .<= DATE_END)
-    sort!(df, :date)
-    println("  Shock rows: ", nrow(df))
+    sort!(df, :date); println("  Shock rows: ", nrow(df))
     return df
 end
 
 function load_oil_price()::DataFrame
-    println("Loading oil price (WTI) from VARdata.xlsx...")
+    println("Loading oil price (WTI)...")
     path = joinpath(DATA_DIR, "VARdata.xlsx")
-    xf   = XLSX.readxlsx(path)
-    sh   = xf["Monthly"]
-
-    dates  = Vector{Date}()
-    prices = Vector{Float64}()
-
+    xf   = XLSX.readxlsx(path); sh = xf["Monthly"]
+    dates = Vector{Date}(); prices = Vector{Float64}()
     for row in XLSX.eachrow(sh)
         XLSX.row_number(row) == 1 && continue
-        d_raw = row[1]
-        p_raw = row[2]
+        d_raw = row[1]; p_raw = row[2]
         (ismissing(d_raw) || ismissing(p_raw)) && continue
-        d = parse_yearmonth(d_raw)
-        isnothing(d) && continue
-        push!(dates,  d)
-        push!(prices, Float64(p_raw))
+        d = parse_yearmonth(d_raw); isnothing(d) && continue
+        push!(dates, d); push!(prices, Float64(p_raw))
     end
-
-    df = DataFrame(date = dates, oil_price = prices)
+    df = DataFrame(date=dates, oil_price=prices)
     df[!, :log_oil_price] = log.(df.oil_price)
     df = @subset(df, DATE_START .<= :date .<= DATE_END)
-    sort!(df, :date)
-    println("  Oil price rows: ", nrow(df))
-    return df
+    sort!(df, :date); return df
 end
 
 function load_fred(filename::String, colname::Symbol)::DataFrame
-    println("Loading $filename...")
     path = joinpath(DATA_DIR, filename)
-
-    df = CSV.read(path, DataFrame;
-        types=Dict(1 => Date, 2 => Float32), dateformat="yyyy-m-d")
-
+    df = CSV.read(path, DataFrame; types=Dict(1=>Date,2=>Float32), dateformat="yyyy-m-d")
     rename!(df, first(names(df)) => :date, names(df)[2] => colname)
-    df = filter(row -> DATE_START <= row.date && row.date <= DATE_END, df)
-    sort!(df, :date)
-    return df
+    filter!(row -> DATE_START <= row.date <= DATE_END, df)
+    sort!(df, :date); return df
 end
 
 # =============================================================================
-# 10. BUILD MACRO PANEL (with lags)
+# 14. BUILD MACRO PANEL
 # =============================================================================
 function lag_vec(v::AbstractVector, k::Int)
     T   = Union{eltype(v), Missing}
@@ -620,87 +639,88 @@ function lag_vec(v::AbstractVector, k::Int)
     return out
 end
 
-function build_macro_panel(shock_df, oil_df, ffr_df, cpi_df, indpro_df)::DataFrame
+function build_macro_panel(shock_df, oil_df, ffr_df, cpi_df, indpro_df, t10y3m_df)::DataFrame
     println("Building macro panel with lags...")
-
-    macro_df = outerjoin(shock_df, oil_df, on = :date)
-    macro_df = outerjoin(macro_df, ffr_df, on = :date)
-    macro_df = outerjoin(macro_df, cpi_df, on = :date)
-    macro_df = outerjoin(macro_df, indpro_df, on = :date)
+    macro_df = outerjoin(shock_df, oil_df, on=:date)
+    macro_df = outerjoin(macro_df, ffr_df, on=:date)
+    macro_df = outerjoin(macro_df, cpi_df, on=:date)
+    macro_df = outerjoin(macro_df, indpro_df, on=:date)
+    macro_df = outerjoin(macro_df, t10y3m_df, on=:date)
     sort!(macro_df, :date)
 
     for l in 1:L_LAG
         macro_df[!, Symbol("shock_lag", l)] = lag_vec(macro_df.shock, l)
     end
-
     macro_df[!, :log_oil_lag1] = lag_vec(macro_df.log_oil_price, 1)
     macro_df[!, :ffr_lag1]     = lag_vec(macro_df.fedfunds, 1)
     macro_df[!, :cpi_lag1]     = lag_vec(macro_df.cpi, 1)
-    macro_df[!, :indpro_lag1]     = lag_vec(macro_df.indpro, 1)
+    macro_df[!, :indpro_lag1]  = lag_vec(macro_df.indpro, 1)
+    macro_df[!, :t10y3m_lag1]  = lag_vec(macro_df.t10y3m, 1)
     macro_df = dropmissing(macro_df)
-    println("  Macro panel rows after lag construction: ", nrow(macro_df))
+    println("  Macro panel rows: ", nrow(macro_df))
     return macro_df
 end
 
 # =============================================================================
-# 11. MAIN  — 统一入口，按 variant 切换因变量
+# 15. MAIN
 # =============================================================================
 """
-    main(variant::Symbol) -> DataFrame
+    main(variant::Symbol) -> (panel::DataFrame, oilshare_df::DataFrame, ind_intensity_df::DataFrame)
 
-构建并返回指定变体的面板数据集。
+构建行业层面面板，同时输出 OilShare 向量供截面分析使用。
 
-`variant` 可选值：
-  :hourly_rate   — 加权均值对数实际时薪（log real hourly wage）
-  :hours         — 加权均值对数工时（log hours worked）
-  :income        — 周收入均值 
-  :income_share_var
-  :inequality    — 组内 75-25 对数收入比（log ratio p75/p25）
-  :median        — 加权中位数对数收入 & 时薪（median log income / wage）
-  :unemployment  — 失业率
-  :employment
+返回值：
+  panel           : 用于 LP 估计的 (ind_group × date) 面板
+  oilshare_df     : 职业组层面的 Bartik oil exposure（供 occ 层面截面分析）
+  ind_intensity_df: 行业组层面的 oil intensity（供 ind 层面截面分析）
 """
 function main(variant::Symbol = :hourly_rate)
     println("="^60)
-    println("Running variant: $variant")
+    println("Running variant: $variant  [ind_v2]")
     println("="^60)
 
-    output_dir = get_output_dir(variant)
+    download_gdrive_large(CPS_FILE_ID, CPS_PATH; expected_hash=CPS_SHA256)
 
-    # Download CPS if needed
-    download_gdrive_large(CPS_FILE_ID, CPS_PATH; expected_hash = CPS_SHA256)
-
-    # Parse CPS
     cps_raw = parse_cps(CPS_PATH)
     cpi_df  = load_cpi()
 
-    # Labor sample (for unemployment panel)
-    cps_clean_labor = clean_cps_labor(cps_raw)
+    # OilShare 构造（全样本，时间不变）
+    oilshare_df, ind_intensity_df = build_oilshare(cps_raw)
 
-    # Earnings sample
-    cps_clean_earn = clean_cps_earn(cps_raw)
-    cps_clean_earn = deflate_wages!(cps_clean_earn, cpi_df)
-    cps_clean_earn = add_log_rwage!(cps_clean_earn, variant)
+    # 保存 OilShare 供后续分析
+    output_dir = get_output_dir(variant)
+    CSV.write(joinpath(dirname(output_dir), "oilshare_by_occ.csv"),    oilshare_df)
+    CSV.write(joinpath(dirname(output_dir), "oil_intensity_by_ind.csv"), ind_intensity_df)
+    println("OilShare saved.")
 
-    # Build panels
-    panel_labor = build_panel_unemp(cps_clean_labor)
-    panel_earn  = build_panel_earn(cps_clean_earn, variant)
-    panel_all   = leftjoin(panel_labor, panel_earn, on = [:ind_group, :date, :year, :month])
+    # Labor panel
+    cps_labor = clean_cps_labor(cps_raw)
+    panel_labor = build_panel_unemp(cps_labor)
 
-    describe(DataFrame(unemp_rate = panel_all.unemp_rate))
+    # Earnings panel
+    cps_earn = clean_cps_earn(cps_raw)
+    cps_earn = deflate_wages!(cps_earn, cpi_df)
+    cps_earn = add_log_rwage!(cps_earn, variant)
+    panel_earn = build_panel_earn(cps_earn, variant)
 
-    # Load macro data
-    shock_df = load_oil_shock()
-    oil_df   = load_oil_price()
-    ffr_df   = load_fred("FEDFUNDS.csv", :fedfunds)
-    indpro_df   = load_fred("INDPRO.csv", :indpro)
-    macro_df = build_macro_panel(shock_df, oil_df, ffr_df, cpi_df, indpro_df)
+    # Merge
+    panel_all = leftjoin(panel_labor, panel_earn, on=[:ind_group, :date, :year, :month])
 
-    # Merge panel with macro
-    panel = leftjoin(panel_all, macro_df, on = :date)
-    panel = dropmissing(panel, [:shock, :log_oil_lag1, :ffr_lag1, :cpi_lag1, :indpro_lag1])
+    # Macro
+    shock_df  = load_oil_shock()
+    oil_df    = load_oil_price()
+    ffr_df    = load_fred("FEDFUNDS.csv", :fedfunds)
+    indpro_df = load_fred("INDPRO.csv",   :indpro)
+    t10y3m_df = load_fred("T10Y3M.csv",   :t10y3m)
+    macro_df  = build_macro_panel(shock_df, oil_df, ffr_df, cpi_df, indpro_df, t10y3m_df)
+
+    panel = leftjoin(panel_all, macro_df, on=:date)
+    panel = dropmissing(panel, [:shock, :log_oil_lag1, :ffr_lag1, :cpi_lag1,
+                                 :indpro_lag1, :t10y3m_lag1])
     sort!(panel, [:ind_group, :date])
 
-    println("\nVariant '$variant' complete — $(nrow(panel)) observations, output_dir = $output_dir")
-    return panel
+    println("\nVariant '$variant' complete — $(nrow(panel)) obs, $(length(unique(panel.ind_group))) ind groups")
+    return panel, oilshare_df, ind_intensity_df
 end
+
+ 
