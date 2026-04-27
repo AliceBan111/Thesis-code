@@ -68,6 +68,8 @@ const VARIANT_YLABELS = Dict(
 
 const H_MAX_PLOT = 36
 
+finite_values(v) = Float64[Float64(x) for x in skipmissing(v) if isfinite(Float64(x))]
+
 # =============================================================================
 # OUTPUT DIRECTORY  (mirrors data prep)
 # =============================================================================
@@ -89,7 +91,7 @@ function get_global_ylims(irfs::Dict{Int,DataFrame})
     for df in values(irfs)
         nrow(df) == 0 && continue
         for col in (:ci_lo90, :ci_hi90, :beta)
-            vals = collect(skipmissing(df[!, col]))
+            vals = finite_values(df[!, col])
             isempty(vals) && continue
             g_min = min(g_min, minimum(vals))
             g_max = max(g_max, maximum(vals))
@@ -112,24 +114,41 @@ function plot_single_irf!(ax::Axis, df::DataFrame, occ_g::Int, ylims_all)
     ylims!(ax, ylims_all[1], ylims_all[2])
     hlines!(ax, [0.0]; color=:black, linewidth=1, linestyle=:dash)
 
-    valid = dropmissing(df, [:beta, :ci_lo90, :ci_hi90, :ci_lo68, :ci_hi68])
+    line_df = dropmissing(df, [:horizon, :beta])
+    if nrow(line_df) > 0
+        keep_line = isfinite.(Float64.(line_df.horizon)) .& isfinite.(Float64.(line_df.beta))
+        line_df = line_df[keep_line, :]
+    end
 
-    if nrow(valid) == 0
+    if nrow(line_df) == 0
         y_mid = (ylims_all[1] + ylims_all[2]) / 2
         text!(ax, [H_MAX_PLOT / 2], [y_mid];
               text=["No data"], align=(:center, :center), color=:gray50)
         return
     end
 
-    hs    = Float64.(valid.horizon)
-    betas = Float64.(valid.beta)
-    lo90  = Float64.(valid.ci_lo90)
-    hi90  = Float64.(valid.ci_hi90)
-    lo68  = Float64.(valid.ci_lo68)
-    hi68  = Float64.(valid.ci_hi68)
+    band_df = dropmissing(df, [:horizon, :beta, :ci_lo90, :ci_hi90, :ci_lo68, :ci_hi68])
+    if nrow(band_df) > 0
+        keep_band =
+            isfinite.(Float64.(band_df.horizon)) .&
+            isfinite.(Float64.(band_df.beta)) .&
+            isfinite.(Float64.(band_df.ci_lo90)) .&
+            isfinite.(Float64.(band_df.ci_hi90)) .&
+            isfinite.(Float64.(band_df.ci_lo68)) .&
+            isfinite.(Float64.(band_df.ci_hi68))
+        band_df = band_df[keep_band, :]
+    end
 
-    band!(ax, hs, lo90, hi90; color=(base_color, 0.20))
-    band!(ax, hs, lo68, hi68; color=(base_color, 0.40))
+    if nrow(band_df) > 0
+        hs_band = Float64.(band_df.horizon)
+        band!(ax, hs_band, Float64.(band_df.ci_lo90), Float64.(band_df.ci_hi90);
+              color=(base_color, 0.20))
+        band!(ax, hs_band, Float64.(band_df.ci_lo68), Float64.(band_df.ci_hi68);
+              color=(base_color, 0.40))
+    end
+
+    hs    = Float64.(line_df.horizon)
+    betas = Float64.(line_df.beta)
     lines!(ax, hs, betas; color=base_color, linewidth=2.5)
 end
 
@@ -172,7 +191,7 @@ function plot_irf_grid(irfs::Dict{Int,DataFrame},
     for idx in (n_filled+1):9
         row_pos = ceil(Int, idx / 3)
         col_pos = mod1(idx, 3)
-        Axis(fig[row_pos, col_pos]; visible=false)
+        Box(fig[row_pos, col_pos]; color=:white, strokecolor=:white)
     end
 
     output_path = joinpath(output_dir, "irf_occupations.pdf")
