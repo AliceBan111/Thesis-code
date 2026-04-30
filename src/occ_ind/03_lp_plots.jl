@@ -36,6 +36,28 @@ const PLOT_OCC_LABELS = Dict(
     9 => "Machine_ops_transport",
 )
 
+# const PLOT_IND_LABELS = Dict(
+#     1 => "Energy_intensive",
+#     2 => "Manufacturing_Construction",
+#     3 => "Trade",
+#     4 => "Services",
+# )
+
+# const PLOT_IND_LABELS = Dict(
+#     1  => "Agriculture_forestry_fishing",
+#     2  => "Mining",
+#     3  => "Construction",
+#     4  => "Manufacturing_nondurable",
+#     5  => "Manufacturing_durable",
+#     6  => "Transportation_utilities",
+#     7  => "Wholesale_trade",
+#     8  => "Retail_trade",
+#     9  => "Finance_insurance_realestate",
+#     10 => "Business_repair_services",
+#     11 => "Personal_entertainment_services",
+#     12 => "Professional_related_services",
+# )
+
 const PLOT_IND_LABELS = Dict(
     1 => "Energy_intensive",
     2 => "Manufacturing_Construction",

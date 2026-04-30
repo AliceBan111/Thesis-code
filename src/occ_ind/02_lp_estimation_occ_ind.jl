@@ -43,20 +43,20 @@ const MIN_OCC_GROUPS = 3
 #   4 => Services              : Finance (9), Business (10), Personal (11),
 #                                Professional (12), Agriculture (1)
 # =============================================================================
-const IND_MERGE = Dict(
-    1  => 4,
-    2  => 1,
-    3  => 2,
-    4  => 2,
-    5  => 2,
-    6  => 1,
-    7  => 3,
-    8  => 3,
-    9  => 4,
-    10 => 4,
-    11 => 4,
-    12 => 4,
-)
+# const IND_MERGE = Dict(
+#     1  => 4,
+#     2  => 1,
+#     3  => 2,
+#     4  => 2,
+#     5  => 2,
+#     6  => 1,
+#     7  => 3,
+#     8  => 3,
+#     9  => 4,
+#     10 => 4,
+#     11 => 4,
+#     12 => 4,
+# )
 
 const IND_LABELS = Dict(
     1 => "Energy_intensive",
@@ -64,6 +64,21 @@ const IND_LABELS = Dict(
     3 => "Trade",
     4 => "Services",
 )
+
+# const IND_LABELS = Dict(
+#     1  => "Agriculture_forestry_fishing",
+#     2  => "Mining",
+#     3  => "Construction",
+#     4  => "Manufacturing_nondurable",
+#     5  => "Manufacturing_durable",
+#     6  => "Transportation_utilities",
+#     7  => "Wholesale_trade",
+#     8  => "Retail_trade",
+#     9  => "Finance_insurance_realestate",
+#     10 => "Business_repair_services",
+#     11 => "Personal_entertainment_services",
+#     12 => "Professional_related_services",
+# )
 
 const OCC_LABELS = Dict(
     1 => "Managerial",
@@ -90,12 +105,12 @@ end
 # =============================================================================
 # INDUSTRY MERGE
 # =============================================================================
-function merge_industry_groups!(panel::DataFrame)::DataFrame
-    panel[!, :ind_merged] = [get(IND_MERGE, g, missing) for g in panel.ind_group]
-    panel = dropmissing(panel, :ind_merged)
-    panel[!, :ind_merged] = Int.(panel.ind_merged)
-    return panel
-end
+# function merge_industry_groups!(panel::DataFrame)::DataFrame
+#     panel[!, :ind_merged] = [get(IND_MERGE, g, missing) for g in panel.ind_group]
+#     panel = dropmissing(panel, :ind_merged)
+#     panel[!, :ind_merged] = Int.(panel.ind_merged)
+#     return panel
+# end
 
 # =============================================================================
 # VARIABLE MAP
@@ -136,10 +151,13 @@ function var_estim(y::Matrix{Float64}, p::Int, intercept::Bool, trend::Bool)
 end
 
 function ic_var(y::Matrix{Float64}, p_max::Int, method::Int=2)
-    T_eff = size(y, 1) - p_max
+    T = size(y, 1)
     n_v   = size(y, 2)
     aic   = zeros(p_max)
     bic   = zeros(p_max)
+
+    T_eff = T - p_max
+
     for p in 1:p_max
         _, _, Sigma = var_estim(y, p, true, false)
         n_params = n_v^2 * p + n_v
@@ -204,8 +222,11 @@ function demean_by_group(x::Vector{Float64}, group::Vector)::Vector{Float64}
     out = copy(x)
     for g in unique(group)
         idx = findall(group .== g)
-        length(idx) < 2 && continue   # singleton: demeaned contribution = 0
-        out[idx] .-= mean(x[idx])
+        if length(idx) < 2
+            out[idx] .= 0.0
+        else
+            out[idx] .= x[idx] .- mean(x[idx])   # singleton: demeaned contribution = 0
+        end
     end
     return out
 end
@@ -527,14 +548,16 @@ function run_lp(panel::DataFrame, variant::Symbol)
 
     y_var, controls = get_lp_specs(variant)
 
-    panel = merge_industry_groups!(copy(panel))
+    # panel = merge_industry_groups!(copy(panel))
+    panel = copy(panel)
     l_lag = select_lag_length(panel; p_max=L_LAG_MAX)
     @info "variant=$variant | outcome=$y_var | lags=$l_lag"
 
     all_results = Dict{Int,DataFrame}()
 
-    for ind in sort(unique(panel.ind_merged))
-        panel_ind  = subset(panel, :ind_merged => x -> x .== ind)
+    for ind in sort(unique(panel.ind_group))
+        # panel_ind  = subset(panel, :ind_merged => x -> x .== ind)
+        panel_ind  = subset(panel, :ind_group => x -> x .== ind)
         occ_groups = sort(unique(panel_ind.occ_group))
         ind_label  = get(IND_LABELS, ind, "industry_$(ind)")
 
@@ -545,12 +568,15 @@ function run_lp(panel::DataFrame, variant::Symbol)
 
         @info "Industry: $ind_label | occ groups: $occ_groups"
 
-        results_df, boot_store, coef_names = try
-            run_full_lp(panel_ind, y_var, controls, l_lag)
-        catch err
-            @warn "LP failed for $ind_label" exception=(err, catch_backtrace())
-            continue
-        end
+        # results_df, boot_store, coef_names = try
+        #     run_full_lp(panel_ind, y_var, controls, l_lag)
+        # catch err
+        #     @warn "LP failed for $ind_label" exception=(err, catch_backtrace())
+        #     continue
+        # end
+
+        results_df, boot_store, coef_names = run_full_lp(panel_ind, y_var, controls, l_lag)
+        
 
         irfs       = extract_irf(results_df, occ_groups)
         output_dir = get_output_dir(variant, ind)

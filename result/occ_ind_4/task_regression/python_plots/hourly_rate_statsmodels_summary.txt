@@ -1,0 +1,30 @@
+                            OLS Regression Results                            
+==============================================================================
+Dep. Variable:        cumulative_beta   R-squared:                       0.107
+Model:                            OLS   Adj. R-squared:                 -0.085
+Method:                 Least Squares   F-statistic:                    0.5579
+Date:                Thu, 30 Apr 2026   Prob (F-statistic):              0.760
+Time:                        01:46:00   Log-Likelihood:                -25.624
+No. Observations:                  35   AIC:                             65.25
+Df Residuals:                      28   BIC:                             76.14
+Df Model:                           6                                         
+Covariance Type:            nonrobust                                         
+=============================================================================================================
+                                                coef    std err          t      P>|t|      [0.025      0.975]
+-------------------------------------------------------------------------------------------------------------
+Intercept                                    -0.2614      0.407     -0.642      0.526      -1.095       0.572
+C(industry)[T.Manufacturing_Construction]    -0.0745      0.265     -0.281      0.781      -0.618       0.469
+C(industry)[T.Services]                      -0.0654      0.265     -0.246      0.807      -0.609       0.478
+C(industry)[T.Trade]                          0.2773      0.275      1.010      0.321      -0.285       0.840
+task_abstract                                 0.0504      0.055      0.917      0.367      -0.062       0.163
+task_routine                                  0.0347      0.063      0.546      0.589      -0.095       0.165
+task_manual                                   0.0086      0.135      0.064      0.949      -0.267       0.284
+==============================================================================
+Omnibus:                       64.888   Durbin-Watson:                   2.376
+Prob(Omnibus):                  0.000   Jarque-Bera (JB):              655.890
+Skew:                           4.136   Prob(JB):                    3.76e-143
+Kurtosis:                      22.528   Cond. No.                         28.6
+==============================================================================
+
+Notes:
+[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.

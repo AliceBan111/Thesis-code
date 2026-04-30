@@ -77,7 +77,22 @@ const OCC_LABELS = Dict(
     9 => "Machine_operators_transport",
 )
 
-const IND_LABELS = Dict(
+# const IND_LABELS = Dict(
+#     1  => "Agriculture_forestry_fishing",
+#     2  => "Mining",
+#     3  => "Construction",
+#     4  => "Manufacturing_nondurable",
+#     5  => "Manufacturing_durable",
+#     6  => "Transportation_utilities",
+#     7  => "Wholesale_trade",
+#     8  => "Retail_trade",
+#     9  => "Finance_insurance_realestate",
+#     10 => "Business_repair_services",
+#     11 => "Personal_entertainment_services",
+#     12 => "Professional_related_services",
+# )
+
+const IND12_LABELS = Dict(
     1  => "Agriculture_forestry_fishing",
     2  => "Mining",
     3  => "Construction",
@@ -90,6 +105,33 @@ const IND_LABELS = Dict(
     10 => "Business_repair_services",
     11 => "Personal_entertainment_services",
     12 => "Professional_related_services",
+)
+
+# 12-group ind1990 classification → 4 broad industry groups
+# 1 = Energy-intensive
+# 2 = Manufacturing & Construction
+# 3 = Trade
+# 4 = Services
+const IND_MERGE = Dict(
+    1  => 4,  # Agriculture_forestry_fishing
+    2  => 1,  # Mining
+    3  => 2,  # Construction
+    4  => 2,  # Manufacturing_nondurable
+    5  => 2,  # Manufacturing_durable
+    6  => 1,  # Transportation_utilities
+    7  => 3,  # Wholesale_trade
+    8  => 3,  # Retail_trade
+    9  => 4,  # Finance_insurance_realestate
+    10 => 4,  # Business_repair_services
+    11 => 4,  # Personal_entertainment_services
+    12 => 4,  # Professional_related_services
+)
+
+const IND_LABELS = Dict(
+    1 => "Energy_intensive",
+    2 => "Manufacturing_Construction",
+    3 => "Trade",
+    4 => "Services",
 )
 
 function classify_occ1990(occ::Union{Integer,Missing})::Union{Int,Missing}
@@ -263,10 +305,13 @@ function clean_cps_labor(df::DataFrame)::DataFrame
     df = @subset(df, :empstat .∈ Ref([10, 12, 20, 21, 22]))
     df = @subset(df, 15 .<= :age .<= 64)
     df = @subset(df, :wtfinl .> 0)
-    df = @subset(df, .!(:classwkr .∈ Ref([21, 22, 23, 24, 25, 27, 28])))
+    df = @subset(df, :classwkr .∈ Ref([21, 22, 23, 24, 25, 27, 28]))
 
     df[!, :occ_group] = map(classify_occ1990, df.occ1990)
-    df[!, :ind_group] = map(classify_ind1990, df.ind1990)
+    # df[!, :ind_group] = map(classify_ind1990, df.ind1990)
+    df[!, :ind12_group] = map(classify_ind1990, df.ind1990)
+    df[!, :ind_group] = [ismissing(g) ? missing : get(IND_MERGE, g, missing)
+                     for g in df.ind12_group]
     df = @subset(df, .!ismissing.(:occ_group), .!ismissing.(:ind_group))
     df[!, :occ_group] = convert(Vector{Int}, df.occ_group)
     df[!, :ind_group] = convert(Vector{Int}, df.ind_group)
@@ -288,10 +333,13 @@ function clean_cps_earn(df::DataFrame)::DataFrame
 
     df = @subset(df, :earnwt .> 0)
     df = @subset(df, 0 .< :hours_worked .<= 105)
-    df = @subset(df, .!(:classwkr .∈ Ref([21, 22, 23, 24, 25, 27, 28])))
+    df = @subset(df, :classwkr .∈ Ref([21, 22, 23, 24, 25, 27, 28]))
 
     df[!, :occ_group] = map(classify_occ1990, df.occ1990)
-    df[!, :ind_group] = map(classify_ind1990, df.ind1990)
+    # df[!, :ind_group] = map(classify_ind1990, df.ind1990)
+    df[!, :ind12_group] = map(classify_ind1990, df.ind1990)
+    df[!, :ind_group] = [ismissing(g) ? missing : get(IND_MERGE, g, missing)
+                     for g in df.ind12_group]
     df = @subset(df, .!ismissing.(:occ_group), .!ismissing.(:ind_group))
     df[!, :occ_group] = convert(Vector{Int}, df.occ_group)
     df[!, :ind_group] = convert(Vector{Int}, df.ind_group)
