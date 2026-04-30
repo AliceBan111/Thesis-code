@@ -1,0 +1,28 @@
+                            OLS Regression Results                            
+==============================================================================
+Dep. Variable:        cumulative_beta   R-squared:                       0.483
+Model:                            OLS   Adj. R-squared:                  0.416
+Method:                 Least Squares   F-statistic:                     7.232
+Date:                Thu, 30 Apr 2026   Prob (F-statistic):           0.000310
+Time:                        22:29:35   Log-Likelihood:                 77.452
+No. Observations:                  36   AIC:                            -144.9
+Df Residuals:                      31   BIC:                            -137.0
+Df Model:                           4                                         
+Covariance Type:            nonrobust                                         
+=============================================================================================================
+                                                coef    std err          t      P>|t|      [0.025      0.975]
+-------------------------------------------------------------------------------------------------------------
+Intercept                                     0.0977      0.013      7.409      0.000       0.071       0.125
+C(industry)[T.Manufacturing_Construction]     0.0378      0.014      2.642      0.013       0.009       0.067
+C(industry)[T.Services]                       0.0020      0.014      0.140      0.890      -0.027       0.031
+C(industry)[T.Trade]                         -0.0125      0.014     -0.873      0.389      -0.042       0.017
+task_abstract                                -0.0104      0.003     -3.902      0.000      -0.016      -0.005
+==============================================================================
+Omnibus:                       13.615   Durbin-Watson:                   2.106
+Prob(Omnibus):                  0.001   Jarque-Bera (JB):               21.432
+Skew:                          -0.890   Prob(JB):                     2.22e-05
+Kurtosis:                       6.335   Cond. No.                         17.0
+==============================================================================
+
+Notes:
+[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.

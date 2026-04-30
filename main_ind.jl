@@ -67,3 +67,9 @@ for my_variant in variants_to_run
         ind_intensity_df_filtered
     )
 end
+
+include("src/ind/01_data_prep.jl")
+include("src/ind/02_lp_ind_estimation.jl")
+include("src/ind/06_oilshare_no_mining.jl")
+
+cs_results_no_mining = run_cross_sectional_occ_no_mining_all()
