@@ -35,24 +35,33 @@ const TABLE_COLUMNS = [
     :outcome,
     :H,
     :R2_industry_only,
+    :AdjR2_industry_only,
     :R2_occupation_only,
+    :AdjR2_occupation_only,
     :R2_industry_occupation,
+    :AdjR2_industry_occupation,
 ]
 
 const COLUMN_LABELS = Dict(
     :outcome => "Outcome",
     :H => "H",
     :R2_industry_only => "R2: ind.",
+    :AdjR2_industry_only => "Adj. R2: ind.",
     :R2_occupation_only => "R2: occ.",
+    :AdjR2_occupation_only => "Adj. R2: occ.",
     :R2_industry_occupation => "R2: both",
+    :AdjR2_industry_occupation => "Adj. R2: both",
 )
 
 const COLUMN_WIDTHS = Dict(
     :outcome => 160.0,
     :H => 55.0,
-    :R2_industry_only => 105.0,
-    :R2_occupation_only => 105.0,
-    :R2_industry_occupation => 105.0,
+    :R2_industry_only => 95.0,
+    :AdjR2_industry_only => 105.0,
+    :R2_occupation_only => 95.0,
+    :AdjR2_occupation_only => 105.0,
+    :R2_industry_occupation => 95.0,
+    :AdjR2_industry_occupation => 105.0,
 )
 
 const R2_COLUMNS = [
@@ -60,6 +69,15 @@ const R2_COLUMNS = [
     :R2_occupation_only,
     :R2_industry_occupation,
 ]
+
+const HIGHLIGHT_BY_R2 = Dict(
+    :R2_industry_only => :R2_industry_only,
+    :AdjR2_industry_only => :R2_industry_only,
+    :R2_occupation_only => :R2_occupation_only,
+    :AdjR2_occupation_only => :R2_occupation_only,
+    :R2_industry_occupation => :R2_industry_occupation,
+    :AdjR2_industry_occupation => :R2_industry_occupation,
+)
 
 function format_cell(x)
     if ismissing(x)
@@ -150,10 +168,13 @@ function draw_table_image(table::DataFrame, output_path::String;
               fontsize = 11, font = :bold, color = :black)
     end
 
-    max_r2_by_row = [
-        maximum(skipmissing([row[c] for c in R2_COLUMNS]))
-        for row in eachrow(table)
-    ]
+    max_r2_by_row = map(eachrow(table)) do row
+        vals = [
+            row[c] for c in R2_COLUMNS
+            if !ismissing(row[c]) && row[c] isa Number && isfinite(row[c])
+        ]
+        isempty(vals) ? missing : maximum(vals)
+    end
 
     for (i, row) in enumerate(eachrow(table))
         yc = header_bottom - (i - 0.5) * row_h
@@ -162,11 +183,10 @@ function draw_table_image(table::DataFrame, output_path::String;
             value = col == :outcome ? row[col] : format_cell(row[col])
             align = col == :outcome ? (:left, :center) : (:center, :center)
             xpos = col == :outcome ? x_edges[j] + 8 : xc
-            is_best_r2 = col in R2_COLUMNS &&
-                         !ismissing(row[col]) &&
-                         row[col] isa Number &&
-                         isfinite(row[col]) &&
-                         row[col] == max_r2_by_row[i]
+            highlight_col = get(HIGHLIGHT_BY_R2, col, nothing)
+            is_best_r2 = highlight_col !== nothing &&
+                         !ismissing(max_r2_by_row[i]) &&
+                         row[highlight_col] == max_r2_by_row[i]
 
             if is_best_r2
                 cell_pad = 5.0
@@ -188,7 +208,7 @@ function draw_table_image(table::DataFrame, output_path::String;
     end
 
     text!(ax, x0, 18;
-          text = "Source: variance_decomposition_r2.csv. Values rounded to three decimals. Highlight = largest R2 within row.",
+          text = "Source: variance_decomposition_r2.csv. Values rounded to three decimals. Highlight = model with largest R2 within row.",
           align = (:left, :center), fontsize = 9, color = RGBf(0.25, 0.25, 0.25))
 
     save(output_path, fig, px_per_unit = 2)
