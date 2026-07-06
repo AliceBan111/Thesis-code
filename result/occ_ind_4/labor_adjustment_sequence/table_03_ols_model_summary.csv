@@ -1,0 +1,19 @@
+spec,model,formula,n,r2,adj_r2,f_pvalue
+A_cumulative_h0_12_u24_36,ols_raw_hours,later_unemployment ~ early_hours,35,0.21159464234539882,0.18770357090132006,0.007109485500488794
+A_cumulative_h0_12_u24_36,ols_decline_intensity,later_unemployment ~ early_hours_decline,35,0.21159464234539882,0.18770357090132006,0.007109485500488794
+A_cumulative_h0_12_u24_36,ols_decline_plus_industry_fe,later_unemployment ~ early_hours_decline + C(industry),35,0.3174631806447983,0.22645827139743813,0.032321247981468806
+B_endpoint_h12_u36,ols_raw_hours,later_unemployment ~ early_hours,35,0.39385125601230764,0.3754831122551049,0.00020272179818422656
+B_endpoint_h12_u36,ols_decline_intensity,later_unemployment ~ early_hours_decline,35,0.39385125601230764,0.3754831122551049,0.00020272179818422656
+B_endpoint_h12_u36,ols_decline_plus_industry_fe,later_unemployment ~ early_hours_decline + C(industry),35,0.4305494662197611,0.35462272838239595,3.765853814023923e-05
+R1_cumulative_h0_6_u18_30,ols_raw_hours,later_unemployment ~ early_hours,35,0.23385066985083325,0.21063402348267668,7.942449003103075e-11
+R1_cumulative_h0_6_u18_30,ols_decline_intensity,later_unemployment ~ early_hours_decline,35,0.23385066985083325,0.21063402348267668,7.942449003103075e-11
+R1_cumulative_h0_6_u18_30,ols_decline_plus_industry_fe,later_unemployment ~ early_hours_decline + C(industry),35,0.49089017393516177,0.42300886379318337,4.2316714527397943e-10
+R2_cumulative_h0_18_u18_36,ols_raw_hours,later_unemployment ~ early_hours,35,0.07827969481027663,0.05034877647119418,0.281164626800396
+R2_cumulative_h0_18_u18_36,ols_decline_intensity,later_unemployment ~ early_hours_decline,35,0.07827969481027663,0.05034877647119418,0.281164626800396
+R2_cumulative_h0_18_u18_36,ols_decline_plus_industry_fe,later_unemployment ~ early_hours_decline + C(industry),35,0.3597675314678932,0.27440320233027893,0.048120407132822174
+R3_cumulative_h6_12_u30_36,ols_raw_hours,later_unemployment ~ early_hours,35,0.38083296004360334,0.36207032246916715,0.015539131281910337
+R3_cumulative_h6_12_u30_36,ols_decline_intensity,later_unemployment ~ early_hours_decline,35,0.38083296004360334,0.36207032246916715,0.015539131281910337
+R3_cumulative_h6_12_u30_36,ols_decline_plus_industry_fe,later_unemployment ~ early_hours_decline + C(industry),35,0.4580070863057061,0.38574136447980023,0.07003161731786284
+R4_endpoint_h6_u24,ols_raw_hours,later_unemployment ~ early_hours,35,0.13742806038940747,0.11128951676484411,0.07526195602715072
+R4_endpoint_h6_u24,ols_decline_intensity,later_unemployment ~ early_hours_decline,35,0.13742806038940747,0.11128951676484411,0.07526195602715072
+R4_endpoint_h6_u24,ols_decline_plus_industry_fe,later_unemployment ~ early_hours_decline + C(industry),35,0.1761671780183598,0.06632280175414107,0.15195802014827456

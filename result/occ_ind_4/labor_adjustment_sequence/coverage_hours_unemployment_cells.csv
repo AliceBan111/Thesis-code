@@ -1,0 +1,37 @@
+industry,industry_label,occ_id,occupation,cell_id,has_hours,has_unemployment,included_in_sequence_tests
+Energy_intensive,Energy intensive,1,Managerial,Energy_intensive__occ1_Managerial,True,True,True
+Energy_intensive,Energy intensive,2,Professional specialty,Energy_intensive__occ2_Professional_specialty,True,True,True
+Energy_intensive,Energy intensive,3,High tech,Energy_intensive__occ3_High_tech,True,True,True
+Energy_intensive,Energy intensive,4,Sales,Energy_intensive__occ4_Sales,True,True,True
+Energy_intensive,Energy intensive,5,Administrative support,Energy_intensive__occ5_Administrative_support,True,True,True
+Energy_intensive,Energy intensive,6,Service,Energy_intensive__occ6_Service,True,True,True
+Energy_intensive,Energy intensive,7,Farming/forestry/construction,Energy_intensive__occ7_Farming_forestry_construction,True,True,True
+Energy_intensive,Energy intensive,8,Precision production/repair,Energy_intensive__occ8_Precision_production_repair,True,True,True
+Energy_intensive,Energy intensive,9,Machine operators/transport,Energy_intensive__occ9_Machine_operators_transport,True,True,True
+Manufacturing_Construction,Mfg. + construction,1,Managerial,Manufacturing_Construction__occ1_Managerial,True,True,True
+Manufacturing_Construction,Mfg. + construction,2,Professional specialty,Manufacturing_Construction__occ2_Professional_specialty,True,True,True
+Manufacturing_Construction,Mfg. + construction,3,High tech,Manufacturing_Construction__occ3_High_tech,True,True,True
+Manufacturing_Construction,Mfg. + construction,4,Sales,Manufacturing_Construction__occ4_Sales,True,True,True
+Manufacturing_Construction,Mfg. + construction,5,Administrative support,Manufacturing_Construction__occ5_Administrative_support,True,True,True
+Manufacturing_Construction,Mfg. + construction,6,Service,Manufacturing_Construction__occ6_Service,True,True,True
+Manufacturing_Construction,Mfg. + construction,7,Farming/forestry/construction,Manufacturing_Construction__occ7_Farming_forestry_construction,True,True,True
+Manufacturing_Construction,Mfg. + construction,8,Precision production/repair,Manufacturing_Construction__occ8_Precision_production_repair,True,True,True
+Manufacturing_Construction,Mfg. + construction,9,Machine operators/transport,Manufacturing_Construction__occ9_Machine_operators_transport,True,True,True
+Services,Services,1,Managerial,Services__occ1_Managerial,True,True,True
+Services,Services,2,Professional specialty,Services__occ2_Professional_specialty,True,True,True
+Services,Services,3,High tech,Services__occ3_High_tech,True,True,True
+Services,Services,4,Sales,Services__occ4_Sales,True,True,True
+Services,Services,5,Administrative support,Services__occ5_Administrative_support,True,True,True
+Services,Services,6,Service,Services__occ6_Service,True,True,True
+Services,Services,7,Farming/forestry/construction,Services__occ7_Farming_forestry_construction,True,True,True
+Services,Services,8,Precision production/repair,Services__occ8_Precision_production_repair,True,True,True
+Services,Services,9,Machine operators/transport,Services__occ9_Machine_operators_transport,True,True,True
+Trade,Trade,1,Managerial,Trade__occ1_Managerial,True,True,True
+Trade,Trade,2,Professional specialty,Trade__occ2_Professional_specialty,True,True,True
+Trade,Trade,3,High tech,Trade__occ3_High_tech,True,True,True
+Trade,Trade,4,Sales,Trade__occ4_Sales,True,True,True
+Trade,Trade,5,Administrative support,Trade__occ5_Administrative_support,True,True,True
+Trade,Trade,6,Service,Trade__occ6_Service,True,True,True
+Trade,Trade,7,Farming/forestry/construction,Trade__occ7_Farming_forestry_construction,False,True,False
+Trade,Trade,8,Precision production/repair,Trade__occ8_Precision_production_repair,True,True,True
+Trade,Trade,9,Machine operators/transport,Trade__occ9_Machine_operators_transport,True,True,True

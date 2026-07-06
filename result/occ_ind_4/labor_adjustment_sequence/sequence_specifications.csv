@@ -1,0 +1,7 @@
+name,hours_kind,hours_start,hours_end,unemployment_kind,unemployment_start,unemployment_end,description
+A_cumulative_h0_12_u24_36,cumulative,0,12,cumulative,24,36,Cumulative hours response at H=0-12 and cumulative unemployment response at H=24-36.
+B_endpoint_h12_u36,endpoint,12,12,endpoint,36,36,Endpoint hours response at H=12 and endpoint unemployment response at H=36.
+R1_cumulative_h0_6_u18_30,cumulative,0,6,cumulative,18,30,Robustness: shorter early hours window and earlier later-unemployment window.
+R2_cumulative_h0_18_u18_36,cumulative,0,18,cumulative,18,36,Robustness: broader early and later windows.
+R3_cumulative_h6_12_u30_36,cumulative,6,12,cumulative,30,36,Robustness: delayed early-hours window and late unemployment window.
+R4_endpoint_h6_u24,endpoint,6,6,endpoint,24,24,Robustness: earlier endpoint comparison.

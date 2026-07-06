@@ -1,0 +1,3 @@
+metric,definition,n_valid,positive_n,negative_n,zero_n,positive_share,median,mean,sign_test_positive_n,sign_test_nonzero_n,sign_test_greater_p,wilcoxon_greater_p
+peak_gap,unemp_peak_horizon - hours_peak_horizon,35,14,18,3,0.4,-1.0,0.3142857142857143,14,32,0.8114572062622756,0.5261288955240783
+frontload_diff,hours_early_share - unemp_early_share,35,28,7,0,0.8,0.0784265802547385,0.08513123121019099,28,35,0.0002541302237659693,8.870181045494974e-05

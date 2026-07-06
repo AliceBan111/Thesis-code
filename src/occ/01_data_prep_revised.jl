@@ -2,13 +2,7 @@
 # data_prep_occ.jl
 # Oil Supply News Shock × Occupational Wage Heterogeneity
 # Step 1: Load all data, construct cell-level panel
-#
-# 统一入口 — 六个变体合并版
-#   variant ∈ :hourly_rate | :hours | :income | :inequality | :median | :unemployment
-#
-# 用法示例：
-#   include("data_prep_occ.jl")
-#   panel = main(:hourly_rate)   # 或 :hours / :income / :inequality / :median / :unemployment
+
 # =============================================================================
 
 using HTTP, Downloads, SHA
@@ -33,7 +27,6 @@ const DATE_END   = Date(2025, 6, 1)
 # LP horizons
 const L_LAG = 12   # shock lags
 
-# 按 variant 返回 OUTPUT_DIR 并确保目录存在
 function get_output_dir(variant::Symbol)::String
     base = joinpath(@__DIR__, "../..", "result", "occ")
     dir = if variant == :hourly_rate
@@ -103,10 +96,6 @@ end
 """
     parse_yearmonth(raw) -> Union{Date, Nothing}
 
-解析多种日期格式，统一返回当月第一天的 Date：
-  - "1975M04" / "1975m04"  (Excel 里的格式)
-  - Julia Date 对象         (XLSX 有时直接返回 Date)
-  - 其他格式返回 nothing
 """
 function parse_yearmonth(raw)::Union{Date, Nothing}
     raw isa Date && return raw
@@ -173,7 +162,7 @@ end
 # end
 
 # =============================================================================
-# 5. PARSE CPS FIXED-WIDTH FILE  （性能优化 + bug修复版）
+# 5. PARSE CPS FIXED-WIDTH FILE  
 # =============================================================================
 # Column layout from data dictionary:
 #   YEAR       1-4
@@ -512,7 +501,6 @@ function build_panel_earn(cps::DataFrame, variant::Symbol)::DataFrame
         )
 
     elseif variant == :unemployment
-        # unemployment 的 earnings panel 与 hourly_rate 相同
         combine(gdf,
             [:log_rincome, :earnwt] => ((w, wt) -> sum(w .* wt) / sum(wt))  => :log_rincome,
             [:log_rwage,   :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :log_rwage,
@@ -524,7 +512,6 @@ function build_panel_earn(cps::DataFrame, variant::Symbol)::DataFrame
         )
     
     elseif variant == :employment
-        # unemployment 的 earnings panel 与 hourly_rate 相同
         combine(gdf,
             [:log_rincome, :earnwt] => ((w, wt) -> sum(w .* wt) / sum(wt))  => :log_rincome,
             [:log_rwage,   :earnwt] => ((x, wt) -> sum(x .* wt) / sum(wt))  => :log_rwage,
@@ -539,7 +526,6 @@ function build_panel_earn(cps::DataFrame, variant::Symbol)::DataFrame
         error("Unknown variant in build_panel_earn: $variant")
     end
 
-    # income / inequality 已经在各自分支内过滤
     if !(variant in (:income, :inequality))
         panel = @subset(panel, :n_obs .>= 30)
     end
@@ -656,21 +642,21 @@ function build_macro_panel(shock_df, oil_df, ffr_df, cpi_df, indpro_df, t10y3m_d
 end
 
 # =============================================================================
-# 11. MAIN  — 统一入口，按 variant 切换因变量
+# 11. MAIN 
 # =============================================================================
 """
     main(variant::Symbol) -> DataFrame
 
 构建并返回指定变体的面板数据集。
 
-`variant` 可选值：
-  :hourly_rate   — 加权均值对数实际时薪（log real hourly wage）
-  :hours         — 加权均值对数工时（log hours worked）
-  :income        — 周收入均值 
+`variant` options:
+  :hourly_rate   — weighted mean log real hourly wage
+  :hours         — weighted mean log hours worked
+  :income        — mean weekly income
   :income_share_var
-  :inequality    — 组内 75-25 对数收入比（log ratio p75/p25）
-  :median        — 加权中位数对数收入 & 时薪（median log income / wage）
-  :unemployment  — 失业率
+  :inequality    — within-group 75-25 log income ratio (log ratio p75/p25)
+  :median        — weighted median log income and hourly wage
+  :unemployment  — unemployment rate
   :employment
 """
 function main(variant::Symbol = :hourly_rate)
